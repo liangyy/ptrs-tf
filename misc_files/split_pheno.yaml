@@ -1,0 +1,18 @@
+pheno_csv:
+  file_path: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/query_phenotypes_cleaned_up.csv'
+  sample_col: 'eid'
+  output_col:
+    - 'height'
+    - 'age_recruitment'
+indiv_list:
+  lists:
+    test_pop1: '/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/test_indiv1.txt'
+    test_pop2: '/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/test_indiv2.txt'
+  sample_col: 'IID'
+  sep: ' '
+pred_expr_hdf5:
+  file_path: '/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_ctimp_Whole_Blood.h5'
+  dataset_sample: 'samples'
+  dataset_gene: 'genes'
+  pred_expr: 'pred_expr'
+  
