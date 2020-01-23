@@ -3,6 +3,10 @@ parser = argparse.ArgumentParser(prog='split_pred_expr.py', description='''
     Split predicted expression in HDF5 format into smaller chunks (to enable
     efficient I/O in TF2). 
 ''')
+parser.add_argument('--hdf5-input', default=None, help='''
+    (Optional) HDF5 input path. You can also specify it in YAML. But this will be given 
+    priority.
+''')
 
 parser.add_argument('--output-prefix', required=True, help='''
     Phenotype table for subset individuals
@@ -39,6 +43,8 @@ args = parser.parse_args()
 
 import pandas as pd
 import numpy as np
+import logging, sys
+
 import util_hdf5
 
 # configing util
@@ -58,6 +64,7 @@ pheno_sample_col = mydic['pheno_csv']['sample_col']
 ## to make sure the sample ID column is string
 pheno[pheno_sample_col] = pheno[pheno_sample_col].astype('str')
 
+
 # load indiv lists
 indiv_sample_col = mydic['indiv_list']['sample_col']
 pop_dic = {}
@@ -65,18 +72,23 @@ for i in mydic['indiv_list']['lists'].keys():
     logging.info('Loading indiv list {}'.format(i))
     filename = mydic['indiv_list']['lists'][i]
     popname = i
-    df_pop = pd.read_table('/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/African.txt', header = 0, sep = mydic['indiv_list']['sep'])
+    df_pop = pd.read_table(filename, header = 0, sep = mydic['indiv_list']['sep'])
     ## to make sure the sample ID column is string
     df_pop[indiv_sample_col] = df_pop[indiv_sample_col].astype('str')
     ## annotate indiv df with phenotype features
     df_pop = df_pop.join(pheno.set_index(pheno_sample_col), on = indiv_sample_col)
+    ## limit to the columns to output
+    df_pop = df_pop[[ indiv_sample_col ] + mydic['pheno_csv']['output_col'] ]
     ## rename the sample ID column to sample
     df_pop = df_pop.rename(columns = {'IID': 'sample'})
     ## add it to pop_dic
     pop_dic[i] = df_pop
+    # print(df_pop)
 
 # do the splitting
-f = split_hdf5_into_chunks(
+if args.hdf5_input is not None:
+    mydic['pred_expr_hdf5']['file_path'] = args.hdf5_input
+f = util_hdf5.split_hdf5_into_chunks(
     mydic['pred_expr_hdf5']['file_path'],
     mydic['pred_expr_hdf5']['dataset_sample'],
     mydic['pred_expr_hdf5']['dataset_gene'],
@@ -86,3 +98,4 @@ f = split_hdf5_into_chunks(
     logging
 )
 logging.info('List of output files: {}'.format('\n'.join(f)))
+

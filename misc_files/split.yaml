@@ -2,8 +2,48 @@ pheno_csv:
   file_path: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/query_phenotypes_cleaned_up.csv'
   sample_col: 'eid'
   output_col:
-    - 'height'
-    - 'age_recruitment'
+    - age_recruitment
+    - sex
+    - pc1
+    - pc2
+    - pc3
+    - pc4
+    - pc5
+    - pc6
+    - pc7
+    - pc8
+    - pc9
+    - pc10
+    - pc11
+    - pc12
+    - pc13
+    - pc14
+    - pc15
+    - pc16
+    - pc17
+    - pc18
+    - pc19
+    - pc20
+    - height
+    - dbp
+    - sbp
+    - bmi
+    - wbc
+    - rbc
+    - hb
+    - ht
+    - mcv
+    - mch
+    - mchc
+    - platelet
+    - lymphocyte
+    - monocyte
+    - neutrophil
+    - eosinophil
+    - basophil
+    - age_squared
+    - age_times_sex
+    - age_squared_times_sex
 indiv_list:
   lists:
     test_pop1: '/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/test_indiv1.txt'

@@ -20,7 +20,7 @@ class DataScheme:
         if self.X_index is None:
             return None
         else:
-            return dataset.element_spec[self.X_index].shape[1]
+            return self.dataset.element_spec[self.X_index].shape[-1]
     def get_num_outcome(self):
         if self.outcome_indice is None:
             return None
@@ -33,22 +33,23 @@ class DataScheme:
             return len(self.covariate_indice)
     def _update_index(self, index, object_name):
         if self.dataset is None:
-            getattr(self, object_name) = None
-        elif len(self.dataset.element_spec) >= index:
-            getattr(self, object_name) = index
+            setattr(self, object_name, None)
+        elif len(self.dataset.element_spec) > index:
+            setattr(self, object_name, index)
         else:
             raise ValueError(f'{object_name} is bigger than the length of dataset')
     def _update_indice(self, indice, object_name):
         if self.Y_index is None:
-            getattr(self, object_name) = None
+            setattr(self, object_name, None)
         else:
-            n_y = dataset.element_spec[self.Y_index].shape[1]
+            n_y = self.dataset.element_spec[self.Y_index].shape[-1]
             if min(indice) < 0:
                 raise ValueError(f'{object_name} cannot be smaller than 0')
-            elif max(indice) > n_y:
+            elif max(indice) >= n_y:
                 raise ValueError(f'{object_name} cannot exceed than length of Y')
             else:
-                getattr(self, object_name) = indice
+                setattr(self, object_name, indice)
+
 
 class SVDInstance:
     def __init__(self, rcond = 1e-10):
@@ -82,7 +83,7 @@ class LeastSquaredEstimator:
             x_dim = n_predictor + n_covariate
             y_dim = n_outcome
             if self.intercept is True:
-                x_dim += x_dim
+                x_dim += 1  
             return (x_dim, y_dim)
     def _init_xtx_xty(self):
         xdim, ydim = self._out_dim()
@@ -91,10 +92,13 @@ class LeastSquaredEstimator:
     def solve(self):
         if self.data_scheme is None:
             raise ValueError('data_scheme is None, we cannot solve')
-        
+        self._init_xtx_xty() 
         for ele in self.data_scheme.dataset:
             x = ele[self.data_scheme.X_index]
             y = ele[self.data_scheme.Y_index]
+            covar = tf.gather(y, self.data_scheme.covariate_indice, axis = 1)
+            y = tf.gather(y, self.data_scheme.outcome_indice, axis = 1) 
+            x = tf.concat((x, covar), axis = 1)
             if self.intercept is True:
                 x_with_1 = tf.concat((tf.ones([x.shape[0], 1], tf.float32), x), axis = 1)
                 self.xtx.assign(
@@ -108,7 +112,7 @@ class LeastSquaredEstimator:
                 self.xty.assign(tf.add(self.xty, tf.matmul(tf.transpose(x), y)))
         
         # svd on xtx
-        self.svd.solve(xtx)
+        self.svd.solve(self.xtx)
         
         # calculate beta hat
         self.betahat = tf.matmul(
