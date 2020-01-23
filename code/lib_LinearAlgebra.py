@@ -16,6 +16,30 @@ class DataScheme:
         self._update_index(Y_index, 'Y_index')
         self._update_indice(outcome_indice, 'outcome_indice')
         self._update_indice(covariate_indice, 'covariate_indice')
+    def get_data_matrix(self, element):
+        x = element[self.X_index]
+        y = element[self.Y_index]
+        covar = tf.gather(y, self.covariate_indice, axis = 1)
+        y = tf.gather(y, self.outcome_indice, axis = 1) 
+        x = tf.concat((x, covar), axis = 1)
+        return x, y
+    def get_indice_x(self):
+        '''
+        return indice in data matrix that are for x
+        '''
+        n_x = self.get_num_predictor()
+        start = 0
+        end = n_x
+        return [ i for i in range(start, end) ]
+    def get_indice_covar(self):
+        '''
+        return indice in data matrix that are for covariates
+        '''
+        n_x = self.get_num_predictor()
+        n_covar = self.get_num_covariate()
+        start = n_x
+        end = n_x + n_covar
+        return [ i for i in range(start, end) ]
     def get_num_predictor(self):
         if self.X_index is None:
             return None
@@ -89,27 +113,27 @@ class LeastSquaredEstimator:
         xdim, ydim = self._out_dim()
         self.xtx = tf.Variable(initial_value = tf.zeros([xdim, xdim], tf.float32))
         self.xty = tf.Variable(initial_value = tf.zeros([xdim, ydim], tf.float32))
+    def _prep_for_intercept(self, x):
+        if self.intercept is True:
+            x = tf.concat((tf.ones([x.shape[0], 1], tf.float32), x), axis = 1)
+        return x
+    def _reshape_y(self, y_list):
+        y_list = np.array(y_list)
+        return np.reshape(y_list, [y_list.shape[0] * y_list.shape[1], y_list.shape[2]], order = 'C')
+    def get_betahat_x(self):
+        indices = self.data_scheme.get_indice_x()
+        if self.intercept is True:
+            indices = [ i + 1 for i in indices ]
+        return tf.gather(self.betahat, indices, axis = 0) 
     def solve(self):
         if self.data_scheme is None:
             raise ValueError('data_scheme is None, we cannot solve')
         self._init_xtx_xty() 
         for ele in self.data_scheme.dataset:
-            x = ele[self.data_scheme.X_index]
-            y = ele[self.data_scheme.Y_index]
-            covar = tf.gather(y, self.data_scheme.covariate_indice, axis = 1)
-            y = tf.gather(y, self.data_scheme.outcome_indice, axis = 1) 
-            x = tf.concat((x, covar), axis = 1)
-            if self.intercept is True:
-                x_with_1 = tf.concat((tf.ones([x.shape[0], 1], tf.float32), x), axis = 1)
-                self.xtx.assign(
-                    tf.add(self.xtx, tf.matmul(tf.transpose(x_with_1), x_with_1))
-                )
-                self.xty.assign(
-                    tf.add(self.xty, tf.matmul(tf.transpose(x_with_1), y))
-                )
-            elif self.intercept is False:
-                self.xtx.assign(tf.add(self.xtx, tf.matmul(tf.transpose(x), x)))
-                self.xty.assign(tf.add(self.xty, tf.matmul(tf.transpose(x), y)))
+            x, y = self.data_scheme.get_data_matrix(ele)
+            x = self._prep_for_intercept(x)
+            self.xtx.assign(tf.add(self.xtx, tf.matmul(tf.transpose(x), x)))
+            self.xty.assign(tf.add(self.xty, tf.matmul(tf.transpose(x), y)))
         
         # svd on xtx
         self.svd.solve(self.xtx)
@@ -125,5 +149,41 @@ class LeastSquaredEstimator:
             )
             , self.xty
         )
-
+    def predict(self, dataset):
+        '''
+        We assume dataset has the same data_scheme as self.data_scheme.
+        y_pred = ((intercept), x, covar) %*% betahat
+        It returns y, ypred as numpy array
+        '''
+        if self.betahat is None:
+            raise ValueError('betahat is None. We cannot predict')
+        y_ = []
+        y_pred_ = []
+        for ele in dataset:
+            x, y = self.data_scheme.get_data_matrix(ele)
+            x = self._prep_for_intercept(x)
+            y_pred_.append(tf.matmul(x, self.betahat))
+            y_.append(y)
+        y_pred_ = self._reshape_y(y_pred_)
+        y_ = self._reshape_y(y_)
+        return {'y_pred': y_pred_, 'y': y_}
+    def predict_x(self, dataset):
+        '''
+        We assume dataset has the same data_scheme as self.data_scheme.
+        y_pred = x %*% betahat_x
+        It returns y, ypred as numpy array
+        '''
+        if self.betahat is None:
+            raise ValueError('betahat is None. We cannot predict')
+        y_ = []
+        y_pred_ = []
+        for ele in dataset:
+            x, y = self.data_scheme.get_data_matrix(ele)
+            x = self._prep_for_intercept(x)
+            y_pred_.append(tf.matmul(x, self.get_betahat_x()))
+            y_.append(y)
+        y_pred_ = self._reshape_y(y_pred_)
+        y_ = self._reshape_y(y_)
+        return {'y_pred_from_x': y_pred_, 'y': y_}    
+            
     
