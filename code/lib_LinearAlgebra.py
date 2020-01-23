@@ -16,12 +16,13 @@ class DataScheme:
         self._update_index(Y_index, 'Y_index')
         self._update_indice(outcome_indice, 'outcome_indice')
         self._update_indice(covariate_indice, 'covariate_indice')
-    def get_data_matrix(self, element):
+    def get_data_matrix(self, element, only_x = False):
         x = element[self.X_index]
         y = element[self.Y_index]
-        covar = tf.gather(y, self.covariate_indice, axis = 1)
+        if only_x is False:
+            covar = tf.gather(y, self.covariate_indice, axis = 1)
+            x = tf.concat((x, covar), axis = 1)
         y = tf.gather(y, self.outcome_indice, axis = 1) 
-        x = tf.concat((x, covar), axis = 1)
         return x, y
     def get_indice_x(self):
         '''
@@ -120,11 +121,22 @@ class LeastSquaredEstimator:
     def _reshape_y(self, y_list):
         y_list = np.array(y_list)
         return np.reshape(y_list, [y_list.shape[0] * y_list.shape[1], y_list.shape[2]], order = 'C')
-    def get_betahat_x(self):
-        indices = self.data_scheme.get_indice_x()
+    def _get_betahat_by_indice(self, indices):
         if self.intercept is True:
             indices = [ i + 1 for i in indices ]
         return tf.gather(self.betahat, indices, axis = 0) 
+    def get_betahat_x(self):
+        indices = self.data_scheme.get_indice_x()
+        return self._get_betahat_by_indice(indices)
+    def get_betahat_covar(self):
+        indices = self.data_scheme.get_indice_covar()
+        return self._get_betahat_by_indice(indices)
+    def get_intercept(self):
+        if self.intercept is True:
+            intercept = self.betahat[0, :]
+        else:
+            intercept = None
+        return intercept
     def solve(self):
         if self.data_scheme is None:
             raise ValueError('data_scheme is None, we cannot solve')
@@ -178,8 +190,7 @@ class LeastSquaredEstimator:
         y_ = []
         y_pred_ = []
         for ele in dataset:
-            x, y = self.data_scheme.get_data_matrix(ele)
-            x = self._prep_for_intercept(x)
+            x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
             y_pred_.append(tf.matmul(x, self.get_betahat_x()))
             y_.append(y)
         y_pred_ = self._reshape_y(y_pred_)
