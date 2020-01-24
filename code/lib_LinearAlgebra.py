@@ -91,6 +91,27 @@ class SVDInstance:
         limit = self.rcond * tf.reduce_max(mat)
         non_zero = tf.greater(s, limit)
         self.s = tf.where(non_zero, s, tf.zeros(s.shape))
+
+class BatchNormalizer:
+    def __init__(self, data_scheme, shuffle = 100):
+        self.shuffle = shuffle
+        self.mean, self.std = self._init_mean_and_std(data_scheme)
+    def _init_mean_and_std(self, data_scheme):
+        batch_dataset = data_scheme.dataset.take(100).shuffle(100).take(1)
+        for ele in batch_dataset:
+            x, _ = data_scheme.get_data_matrix(ele)
+            batch_mean = tf.reduce_mean(x, axis = 1)
+            break
+        for ele in batch_dataset:
+            x, _ = self.data_scheme.get_data_matrix(ele)
+            batch_sq_error = tf.math.squared_difference(x, batch_mean)
+            break
+        batch_std = tf.reduce_mean(batch_sq_error, axis = 1)
+        return batch_mean, batch_std
+    def apply(self, x):
+        return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
+        
+        
             
 class LeastSquaredEstimator:
     def __init__(self, data_scheme, rcond = 1e-10, intercept = False):
@@ -141,15 +162,34 @@ class LeastSquaredEstimator:
         else:
             intercept = None
         return intercept
-    def solve(self, logging = None, sample_size = None, scaling = True):
+    def do_batch_normalize(self, dataset):
+        batch_dataset = self.data_scheme.dataset.take(100).shuffle(100).take(1)
+        for ele in batch_dataset:
+            x, y = self.data_scheme.get_data_matrix(ele)
+            x = self._prep_for_intercept(x)
+            batch_mean = tf.reduce_mean(x, axis = 1)
+            break
+        for ele in batch_dataset:
+            x, y = self.data_scheme.get_data_matrix(ele)
+            x = self._prep_for_intercept(x)
+            batch_sq_error = tf.math.squared_difference(x, batch_mean)
+            break
+        batch_std = tf.reduce_mean(batch_sq_error, axis = 1)
+        return 
+    def solve(self, logging = None, sample_size = None, scaling = True, batch_normalization_shuffle = None):
         if self.data_scheme is None:
             raise ValueError('data_scheme is None, we cannot solve')
         if logging is not None and sample_size is not None:
             timer = 0
+        if batch_normalization is not None:
+            normalizer = BatchNormalizer(self.data_scheme, shuffle = batch_normalization_shuffle)
+            
         self._init_xtx_xty()
         n_processed = 0
         for ele in self.data_scheme.dataset:
             x, y = self.data_scheme.get_data_matrix(ele)
+            if batch_normalization is True:
+                x = normalizer.apply(x)
             x = self._prep_for_intercept(x)
             n_new = x.shape[0]
             n_old = n_processed
