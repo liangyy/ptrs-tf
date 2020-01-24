@@ -11,6 +11,10 @@ parser.add_argument('--model-output', required=True, help='''
     Model is save using `lib_LinearAlgebra.LeastSquaredEstimator.minimal_save` 
     in HDF5 format
 ''')
+parser.add_argument('--batch-size', default=128, type=int, help='''
+    Batch size to process the input matrix
+''')
+
 parser.add_argument('--yaml-of-dataset', required=True, help='''
     It will be used to build data scheme.
     Example structure:
@@ -44,7 +48,7 @@ logging.info('Loading dataset and building data scheme')
 data_scheme, sample_size = util_hdf5.build_data_scheme(
     args.hdf5_input, 
     args.yaml_of_dataset, 
-    batch_size = 2048
+    batch_size = args.batch_size
 )
 
 logging.info('Building least squared solver')
@@ -53,4 +57,5 @@ least_square_solver = lib_LinearAlgebra.LeastSquaredEstimator(data_scheme, inter
 logging.info('Running least squared solver')
 least_square_solver.solve(logging = logging, sample_size = sample_size)
 
-least_square_solver.minimal_save(args.model_output)
+least_square_solver.minimal_save(args.model_output, save_inner_product = True)
+

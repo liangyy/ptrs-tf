@@ -122,8 +122,9 @@ class LeastSquaredEstimator:
             x = tf.concat((tf.ones([x.shape[0], 1], tf.float32), x), axis = 1)
         return x
     def _reshape_y(self, y_list):
-        y_list = np.array(y_list)
-        return np.reshape(y_list, [y_list.shape[0] * y_list.shape[1], y_list.shape[2]], order = 'C')
+        return np.concatenate(y_list, axis = 0)
+        # y_list = np.array(y_list)
+        # return np.reshape(y_list, [y_list.shape[0] * y_list.shape[1], y_list.shape[2]], order = 'C')
     def _get_betahat_by_indice(self, indices):
         if self.intercept is True:
             indices = [ i + 1 for i in indices ]
@@ -161,21 +162,21 @@ class LeastSquaredEstimator:
                 f_new = 1
             self.xtx.assign(tf.add(
                     tf.multiply(self.xtx, f_old), 
-                    tf.multiply(tf.matmul(tf.transpose(x), x), f_new)
+                    tf.matmul(tf.multiply(tf.transpose(x), f_new), x)
                 )
             )
             self.xty.assign(tf.add(
                     tf.multiply(self.xty, f_old), 
-                    tf.multiply(tf.matmul(tf.transpose(x), y), f_new)
+                    tf.matmul(tf.multiply(tf.transpose(x), f_new), y)
                 )
             )
             n_processed += n_new
             if logging is not None and sample_size is not None:
-                percent_5_fold = n_processed / sample_size / 0.05
+                percent_5_fold = int(n_processed / sample_size / 0.05)
                 percent_ = percent_5_fold * 5
-                if percent_5_fold > time:
+                if percent_5_fold > timer:
                     logging.info(f'Progress {percent_}%: {n_processed} / {sample_size}') 
-                    time = percent_5_fold
+                    timer = percent_5_fold
         
         # svd on xtx
         self.svd.solve(self.xtx)

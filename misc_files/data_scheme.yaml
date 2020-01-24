@@ -26,7 +26,7 @@ covar_names:
   - age_squared
   - age_times_sex
   - age_squared_times_sex
-pheno_names:
+outcome_names:
   - height
   - dbp
   - sbp
