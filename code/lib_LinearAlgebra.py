@@ -100,13 +100,13 @@ class BatchNormalizer:
         batch_dataset = data_scheme.dataset.take(100).shuffle(100).take(1)
         for ele in batch_dataset:
             x, _ = data_scheme.get_data_matrix(ele)
-            batch_mean = tf.reduce_mean(x, axis = 1)
+            batch_mean = tf.reduce_mean(x, axis = 0)
             break
         for ele in batch_dataset:
-            x, _ = self.data_scheme.get_data_matrix(ele)
+            x, _ = data_scheme.get_data_matrix(ele)
             batch_sq_error = tf.math.squared_difference(x, batch_mean)
             break
-        batch_std = tf.reduce_mean(batch_sq_error, axis = 1)
+        batch_std = tf.reduce_mean(batch_sq_error, axis = 0)
         return batch_mean, batch_std
     def apply(self, x):
         return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
@@ -181,14 +181,14 @@ class LeastSquaredEstimator:
             raise ValueError('data_scheme is None, we cannot solve')
         if logging is not None and sample_size is not None:
             timer = 0
-        if batch_normalization is not None:
+        if batch_normalization_shuffle is not None:
             normalizer = BatchNormalizer(self.data_scheme, shuffle = batch_normalization_shuffle)
             
         self._init_xtx_xty()
         n_processed = 0
         for ele in self.data_scheme.dataset:
             x, y = self.data_scheme.get_data_matrix(ele)
-            if batch_normalization is True:
+            if batch_normalization_shuffle is not None:
                 x = normalizer.apply(x)
             x = self._prep_for_intercept(x)
             n_new = x.shape[0]
