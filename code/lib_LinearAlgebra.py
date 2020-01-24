@@ -44,11 +44,11 @@ class DataScheme:
         start = n_x
         end = n_x + n_covar
         return [ i for i in range(start, end) ]
-    # def get_num_predictor(self):
-    #     if self.X_index is None:
-    #         return None
-    #     else:
-    #         return self.dataset.element_spec[self.X_index].shape[-1]
+    def get_num_predictor(self):
+        if self.X_index is None:
+            return None
+        else:
+            return self.dataset.element_spec[self.X_index].shape[-1]
     def get_num_outcome(self):
         if self.outcome_indice is None:
             return None
@@ -143,12 +143,27 @@ class LeastSquaredEstimator:
     def solve(self):
         if self.data_scheme is None:
             raise ValueError('data_scheme is None, we cannot solve')
-        self._init_xtx_xty() 
+        self._init_xtx_xty()
+        n_processed = 0
         for ele in self.data_scheme.dataset:
             x, y = self.data_scheme.get_data_matrix(ele)
             x = self._prep_for_intercept(x)
-            self.xtx.assign(tf.add(self.xtx, tf.matmul(tf.transpose(x), x)))
-            self.xty.assign(tf.add(self.xty, tf.matmul(tf.transpose(x), y)))
+            n_new = x.shape[0]
+            n_old = n_processed
+            # val_old_mean * (n_old / (n_old + n_new)) + val_new_sum / (n_old + n_new) 
+            f_old = n_old / (n_old + n_new)
+            f_new = 1 / (n_old + n_new)
+            self.xtx.assign(tf.add(
+                    tf.multiply(self.xtx, f_old), 
+                    tf.multiply(tf.matmul(tf.transpose(x), x), f_new)
+                )
+            )
+            self.xty.assign(tf.add(
+                    tf.multiply(self.xty, f_old), 
+                    tf.multiply(tf.matmul(tf.transpose(x), y), f_new)
+                )
+            )
+            n_processed += n_new
         
         # svd on xtx
         self.svd.solve(self.xtx)
@@ -206,18 +221,20 @@ class LeastSquaredEstimator:
         1) xtx, xty (Optional, controlled by save_inner_product. 
         These are computationally intensive and could be large.); 
         2) betahat; 
-        3) all members but dataset in data_scheme. 
+        3) all members but dataset in data_scheme;
+        4) intercept
         '''
         save_dic = {}
         if save_inner_product is True:
             save_dic['xtx'] = self.xtx.numpy()
             save_dic['xty'] = self.xty.numpy()
         save_dic['betahat'] = self.betahat.numpy()
+        save_dic['intercept'] = self.intercept * 1
         for i in self.data_scheme.__dict__.keys():
             if i != 'dataset':
                 save_dic['data_scheme.' + i] = getattr(self.data_scheme, i)
             else:
-                save_dic['data_scheme.' + i] = getattr(self.data_scheme, b'save_mode')
+                save_dic['data_scheme.' + i] = b'save_mode'
         with h5py.File(filename, 'w') as f:
             for i in save_dic.keys():
                 print('Saving {}'.format(i))
@@ -228,14 +245,24 @@ class LeastSquaredEstimator:
         Note that it is not a perfect load and it is minimal in the sense that it allows `predict` and `predict_x` to work properly.
         '''
         with h5py.File(filename, 'r') as f:
-            def __init__(self, dataset = None, X_index = None, Y_index = None, outcome_indice = None, covariate_indice = None) 
-            dataset = DataScheme()
+            data_scheme = DataScheme()
             for i in f.keys():
                 if 'data_scheme.' in i:
-                    mem = re.sub('data_scheme.', i) 
-                    setattr(dataset, i, f[i][:])
+                    mem = re.sub('data_scheme.', '', i)
+                    if mem == 'outcome_indice' or mem == 'covariate_indice':
+                        val = list(f[i][...])
+                    elif mem == 'X_index' or mem == 'Y_index' or mem == 'num_predictors':
+                        val = f[i][...]
+                    setattr(data_scheme, mem, val)
                 else:
-                    setattr(self, i, tf.Tensor(f[i][:]))
+                    if i == 'intercept':
+                        if f[i][...] == 1:
+                            setattr(self, i, True)
+                        elif f[i][...] == 0:
+                            setattr(self, i, False)
+                    elif i == 'betahat':
+                        setattr(self, i, tf.constant(f[i][:], tf.float32))
+        self.data_scheme = data_scheme
                       
                 
             
