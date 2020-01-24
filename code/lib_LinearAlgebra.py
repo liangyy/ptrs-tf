@@ -140,9 +140,11 @@ class LeastSquaredEstimator:
         else:
             intercept = None
         return intercept
-    def solve(self):
+    def solve(self, logging = None, sample_size = None, scaling = True):
         if self.data_scheme is None:
             raise ValueError('data_scheme is None, we cannot solve')
+        if logging is not None and sample_size is not None:
+            timer = 0
         self._init_xtx_xty()
         n_processed = 0
         for ele in self.data_scheme.dataset:
@@ -151,8 +153,12 @@ class LeastSquaredEstimator:
             n_new = x.shape[0]
             n_old = n_processed
             # val_old_mean * (n_old / (n_old + n_new)) + val_new_sum / (n_old + n_new) 
-            f_old = n_old / (n_old + n_new)
-            f_new = 1 / (n_old + n_new)
+            if scaling is True:
+                f_old = n_old / (n_old + n_new)
+                f_new = 1 / (n_old + n_new)
+            else:
+                f_old = 1
+                f_new = 1
             self.xtx.assign(tf.add(
                     tf.multiply(self.xtx, f_old), 
                     tf.multiply(tf.matmul(tf.transpose(x), x), f_new)
@@ -164,6 +170,12 @@ class LeastSquaredEstimator:
                 )
             )
             n_processed += n_new
+            if logging is not None and sample_size is not None:
+                percent_5_fold = n_processed / sample_size / 0.05
+                percent_ = percent_5_fold * 5
+                if percent_5_fold > time:
+                    logging.info(f'Progress {percent_}%: {n_processed} / {sample_size}') 
+                    time = percent_5_fold
         
         # svd on xtx
         self.svd.solve(self.xtx)
