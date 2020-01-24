@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import h5py 
 import re
+import functools
 
 class DataScheme:
     '''
@@ -93,17 +94,17 @@ class SVDInstance:
         self.s = tf.where(non_zero, s, tf.zeros(s.shape))
 
 class BatchNormalizer:
-    def __init__(self, data_scheme, shuffle = 100):
+    def __init__(self, scheme_func, dataset, shuffle = 100):
         self.shuffle = shuffle
-        self.mean, self.std = self._init_mean_and_std(data_scheme)
-    def _init_mean_and_std(self, data_scheme):
-        batch_dataset = data_scheme.dataset.take(100).shuffle(100).take(1)
+        self.mean, self.std = self._init_mean_and_std(scheme_func, dataset)
+    def _init_mean_and_std(self, scheme_func, dataset):
+        batch_dataset = dataset.take(100).shuffle(100).take(1)
         for ele in batch_dataset:
-            x, _ = data_scheme.get_data_matrix(ele)
+            x, _ = scheme_func(ele)
             batch_mean = tf.reduce_mean(x, axis = 0)
             break
         for ele in batch_dataset:
-            x, _ = data_scheme.get_data_matrix(ele)
+            x, _ = scheme_func(ele)
             batch_sq_error = tf.math.squared_difference(x, batch_mean)
             break
         batch_std = tf.reduce_mean(batch_sq_error, axis = 0)
@@ -114,7 +115,8 @@ class BatchNormalizer:
         
             
 class LeastSquaredEstimator:
-    def __init__(self, data_scheme, rcond = 1e-10, intercept = False):
+    def __init__(self, data_scheme, batch_normalization_shuffle = -1, rcond = 1e-10, intercept = False):
+        self.batch_normalization_shuffle = batch_normalization_shuffle
         self.rcond = rcond
         self.intercept = intercept
         self.data_scheme = data_scheme
@@ -162,33 +164,19 @@ class LeastSquaredEstimator:
         else:
             intercept = None
         return intercept
-    def do_batch_normalize(self, dataset):
-        batch_dataset = self.data_scheme.dataset.take(100).shuffle(100).take(1)
-        for ele in batch_dataset:
-            x, y = self.data_scheme.get_data_matrix(ele)
-            x = self._prep_for_intercept(x)
-            batch_mean = tf.reduce_mean(x, axis = 1)
-            break
-        for ele in batch_dataset:
-            x, y = self.data_scheme.get_data_matrix(ele)
-            x = self._prep_for_intercept(x)
-            batch_sq_error = tf.math.squared_difference(x, batch_mean)
-            break
-        batch_std = tf.reduce_mean(batch_sq_error, axis = 1)
-        return 
-    def solve(self, logging = None, sample_size = None, scaling = True, batch_normalization_shuffle = None):
+    def solve(self, logging = None, sample_size = None, scaling = True):
         if self.data_scheme is None:
             raise ValueError('data_scheme is None, we cannot solve')
         if logging is not None and sample_size is not None:
             timer = 0
-        if batch_normalization_shuffle is not None:
-            normalizer = BatchNormalizer(self.data_scheme, shuffle = batch_normalization_shuffle)
+        if self.batch_normalization_shuffle > 0:
+            normalizer = BatchNormalizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset, shuffle = self.batch_normalization_shuffle)
             
         self._init_xtx_xty()
         n_processed = 0
         for ele in self.data_scheme.dataset:
             x, y = self.data_scheme.get_data_matrix(ele)
-            if batch_normalization_shuffle is not None:
+            if self.batch_normalization_shuffle > 0:
                 x = normalizer.apply(x)
             x = self._prep_for_intercept(x)
             n_new = x.shape[0]
@@ -240,10 +228,16 @@ class LeastSquaredEstimator:
         '''
         if self.betahat is None:
             raise ValueError('betahat is None. We cannot predict')
+        if self.batch_normalization_shuffle is not None:
+            normalizer = BatchNormalizer(self.data_scheme, shuffle = self.batch_normalization_shuffle)
         y_ = []
         y_pred_ = []
+        if self.batch_normalization_shuffle > 0:
+            normalizer = BatchNormalizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset, shuffle = self.batch_normalization_shuffle)
         for ele in dataset:
             x, y = self.data_scheme.get_data_matrix(ele)
+            if self.batch_normalization_shuffle > 0:
+                x = normalizer.apply(x)
             x = self._prep_for_intercept(x)
             y_pred_.append(tf.matmul(x, self.betahat))
             y_.append(y)
@@ -260,8 +254,13 @@ class LeastSquaredEstimator:
             raise ValueError('betahat is None. We cannot predict')
         y_ = []
         y_pred_ = []
+        if self.batch_normalization_shuffle > 0:
+            scheme_func = functools.partial(self.data_scheme.get_data_matrix, only_x = True)
+            normalizer = BatchNormalizer(scheme_func, self.data_scheme.dataset, shuffle = self.batch_normalization_shuffle)
         for ele in dataset:
             x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
+            if self.batch_normalization_shuffle > 0:
+                x = normalizer.apply(x)
             y_pred_.append(tf.matmul(x, self.get_betahat_x()))
             y_.append(y)
         y_pred_ = self._reshape_y(y_pred_)
