@@ -18,3 +18,14 @@ outprefix=least_square_model-ukb_imp_x_ctimp_Whole_Blood_Chinese
 batchsize=8096
 screen -dmS least_square bash run_least_squared.screen $myhdf5 $myyaml $outprefix $batchsize 
 ```
+
+Or by population
+
+```
+pop=ukb_imp_x_ctimp_Whole_Blood_Chinese
+myhdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2/$pop.hdf5
+myyaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/data_scheme.yaml
+outprefix=least_square_model-$pop
+batchsize=8096
+screen -dmS least_square bash run_least_squared.screen $myhdf5 $myyaml $outprefix $batchsize 
+```

@@ -107,7 +107,7 @@ class BatchNormalizer:
             x, _ = scheme_func(ele)
             batch_sq_error = tf.math.squared_difference(x, batch_mean)
             break
-        batch_std = tf.reduce_mean(batch_sq_error, axis = 0)
+        batch_std = tf.math.sqrt(tf.reduce_mean(batch_sq_error, axis = 0))
         return batch_mean, batch_std
     def apply(self, x):
         return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
@@ -164,14 +164,15 @@ class LeastSquaredEstimator:
         else:
             intercept = None
         return intercept
-    def solve(self, logging = None, sample_size = None, scaling = True):
+    def solve(self, logging = None, sample_size = None, scaling = True, return_normalizer = False):
         if self.data_scheme is None:
             raise ValueError('data_scheme is None, we cannot solve')
         if logging is not None and sample_size is not None:
             timer = 0
         if self.batch_normalization_shuffle > 0:
             normalizer = BatchNormalizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset, shuffle = self.batch_normalization_shuffle)
-            
+            # print(normalizer.mean)
+            # print(normalizer.std)
         self._init_xtx_xty()
         n_processed = 0
         for ele in self.data_scheme.dataset:
@@ -220,6 +221,9 @@ class LeastSquaredEstimator:
             )
             , self.xty
         )
+
+        if return_normalizer == True:
+            return normalizer
     def predict(self, dataset):
         '''
         We assume dataset has the same data_scheme as self.data_scheme.
@@ -228,12 +232,10 @@ class LeastSquaredEstimator:
         '''
         if self.betahat is None:
             raise ValueError('betahat is None. We cannot predict')
-        if self.batch_normalization_shuffle is not None:
-            normalizer = BatchNormalizer(self.data_scheme, shuffle = self.batch_normalization_shuffle)
         y_ = []
         y_pred_ = []
         if self.batch_normalization_shuffle > 0:
-            normalizer = BatchNormalizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset, shuffle = self.batch_normalization_shuffle)
+            normalizer = BatchNormalizer(self.data_scheme.get_data_matrix, dataset, shuffle = self.batch_normalization_shuffle)
         for ele in dataset:
             x, y = self.data_scheme.get_data_matrix(ele)
             if self.batch_normalization_shuffle > 0:
@@ -256,7 +258,9 @@ class LeastSquaredEstimator:
         y_pred_ = []
         if self.batch_normalization_shuffle > 0:
             scheme_func = functools.partial(self.data_scheme.get_data_matrix, only_x = True)
-            normalizer = BatchNormalizer(scheme_func, self.data_scheme.dataset, shuffle = self.batch_normalization_shuffle)
+            normalizer = BatchNormalizer(scheme_func, dataset, shuffle = self.batch_normalization_shuffle)
+            # print(normalizer.mean)
+            # print(normalizer.std)              
         for ele in dataset:
             x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
             if self.batch_normalization_shuffle > 0:
@@ -275,6 +279,7 @@ class LeastSquaredEstimator:
         2) betahat; 
         3) all members but dataset in data_scheme;
         4) intercept
+        5) batch normalization shuffle
         '''
         save_dic = {}
         if save_inner_product is True:
@@ -282,6 +287,7 @@ class LeastSquaredEstimator:
             save_dic['xty'] = self.xty.numpy()
         save_dic['betahat'] = self.betahat.numpy()
         save_dic['intercept'] = self.intercept * 1
+        save_dic['batch_normalization_shuffle'] = self.batch_normalization_shuffle
         for i in self.data_scheme.__dict__.keys():
             if i != 'dataset':
                 save_dic['data_scheme.' + i] = getattr(self.data_scheme, i)
@@ -314,6 +320,8 @@ class LeastSquaredEstimator:
                             setattr(self, i, False)
                     elif i == 'betahat':
                         setattr(self, i, tf.constant(f[i][:], tf.float32))
+                    elif i == 'batch_normalization_shuffle':
+                        setattr(self, i, int(f[i][...]))
         self.data_scheme = data_scheme
                       
                 

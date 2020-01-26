@@ -14,7 +14,14 @@ parser.add_argument('--model-output', required=True, help='''
 parser.add_argument('--batch-size', default=128, type=int, help='''
     Batch size to process the input matrix
 ''')
-
+parser.add_argument('--batch-norm-shuffle', default=-1, type=int, help='''
+    Draw among the first N batches.
+    Default -1 means no batch normalization
+''')
+parser.add_argument('--normalizer-output', default=None, help='''
+    HDF5 to mean and std inside normalizer used. 
+    Default is None which won't output normalizer.
+''')
 parser.add_argument('--yaml-of-dataset', required=True, help='''
     It will be used to build data scheme.
     Example structure:
@@ -35,6 +42,7 @@ import numpy as np
 import logging, sys
 import util_hdf5
 import lib_LinearAlgebra
+import h5py
 
 # configing util
 logging.basicConfig(
@@ -51,11 +59,23 @@ data_scheme, sample_size = util_hdf5.build_data_scheme(
     batch_size = args.batch_size
 )
 
-logging.info('Building least squared solver')
-least_square_solver = lib_LinearAlgebra.LeastSquaredEstimator(data_scheme, intercept = True)
+logging.info('Building least squared solver: batch normalization param = {}'.format(args.batch_norm_shuffle))
+least_square_solver = lib_LinearAlgebra.LeastSquaredEstimator(data_scheme, intercept = True, batch_normalization_shuffle = args.batch_norm_shuffle)
 
 logging.info('Running least squared solver')
-least_square_solver.solve(logging = logging, sample_size = sample_size)
+if args.normalizer_output is not None:
+    return_norm = True
+else:
+    return_norm = False
+out = least_square_solver.solve(logging = logging, sample_size = sample_size, return_normalizer = return_norm)
 
+logging.info('Saving model')
 least_square_solver.minimal_save(args.model_output, save_inner_product = True)
+
+if args.normalizer_output is not None:
+    logging.info('Saving normalizer mean and std')
+    with h5py.File(args.normalizer_output, 'w') as f:
+        f.create_dataset('mean', data = np.array(out.mean))
+        f.create_dataset('std', data = np.array(out.std))
+
 
