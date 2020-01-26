@@ -147,8 +147,8 @@ class FullNormalizer:
         
             
 class LeastSquaredEstimator:
-    def __init__(self, data_scheme, batch_normalization_shuffle = -1, rcond = 1e-10, intercept = False):
-        self.batch_normalization_shuffle = batch_normalization_shuffle
+    def __init__(self, data_scheme, normalizer = False, rcond = 1e-10, intercept = False):
+        self.normalizer = normalizer
         self.rcond = rcond
         self.intercept = intercept
         self.data_scheme = data_scheme
@@ -201,7 +201,7 @@ class LeastSquaredEstimator:
             raise ValueError('data_scheme is None, we cannot solve')
         if logging is not None and sample_size is not None:
             timer = 0
-        if self.batch_normalization_shuffle > 0:
+        if self.normalizer == True:
             normalizer = FullNormalizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset)
             # print(normalizer.mean)
             # print(normalizer.std)
@@ -209,7 +209,7 @@ class LeastSquaredEstimator:
         n_processed = 0
         for ele in self.data_scheme.dataset:
             x, y = self.data_scheme.get_data_matrix(ele)
-            if self.batch_normalization_shuffle > 0:
+            if self.normalizer == True:
                 x = normalizer.apply(x)
             x = self._prep_for_intercept(x)
             n_new = x.shape[0]
@@ -266,11 +266,11 @@ class LeastSquaredEstimator:
             raise ValueError('betahat is None. We cannot predict')
         y_ = []
         y_pred_ = []
-        if self.batch_normalization_shuffle > 0:
+        if self.normalizer == True:
             normalizer = FullNormalizer(self.data_scheme.get_data_matrix, dataset)
         for ele in dataset:
             x, y = self.data_scheme.get_data_matrix(ele)
-            if self.batch_normalization_shuffle > 0:
+            if self.normalizer == True:
                 x = normalizer.apply(x)
             x = self._prep_for_intercept(x)
             y_pred_.append(tf.matmul(x, self.betahat))
@@ -288,14 +288,14 @@ class LeastSquaredEstimator:
             raise ValueError('betahat is None. We cannot predict')
         y_ = []
         y_pred_ = []
-        if self.batch_normalization_shuffle > 0:
+        if self.normalizer == True:
             scheme_func = functools.partial(self.data_scheme.get_data_matrix, only_x = True)
             normalizer = FullNormalizer(scheme_func, dataset)
             # print(normalizer.mean)
             # print(normalizer.std)              
         for ele in dataset:
             x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
-            if self.batch_normalization_shuffle > 0:
+            if self.normalizer == True:
                 x = normalizer.apply(x)
             y_pred_.append(tf.matmul(x, self.get_betahat_x()))
             y_.append(y)
@@ -319,7 +319,7 @@ class LeastSquaredEstimator:
             save_dic['xty'] = self.xty.numpy()
         save_dic['betahat'] = self.betahat.numpy()
         save_dic['intercept'] = self.intercept * 1
-        save_dic['batch_normalization_shuffle'] = self.batch_normalization_shuffle
+        save_dic['normalizer'] = self.normalizer * 1
         for i in self.data_scheme.__dict__.keys():
             if i != 'dataset':
                 save_dic['data_scheme.' + i] = getattr(self.data_scheme, i)
@@ -345,15 +345,13 @@ class LeastSquaredEstimator:
                         val = f[i][...]
                     setattr(data_scheme, mem, val)
                 else:
-                    if i == 'intercept':
+                    if i == 'intercept' or i == 'normalizer':
                         if f[i][...] == 1:
                             setattr(self, i, True)
                         elif f[i][...] == 0:
                             setattr(self, i, False)
                     elif i == 'betahat':
                         setattr(self, i, tf.constant(f[i][:], tf.float32))
-                    elif i == 'batch_normalization_shuffle':
-                        setattr(self, i, int(f[i][...]))
         self.data_scheme = data_scheme
                       
                 
