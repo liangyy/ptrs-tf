@@ -112,6 +112,38 @@ class BatchNormalizer:
     def apply(self, x):
         return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
         
+class FullNormalizer:
+    def __init__(self, scheme_func, dataset):
+        self.mean, self.std = self._init_mean_and_std(scheme_func, dataset)
+    def _init_mean_and_std(self, scheme_func, dataset):
+        mean = 0
+        n_processed = 0
+        for ele in dataset:
+            x, _ = scheme_func(ele)
+            n_old = 0
+            n_this = x.shape[0]
+            f_old = n_old / (n_old + n_this)
+            # mean_new = mean_old * n_old / (n_old + n_this) + mean_this * n_this / (n_old + n_this)
+            mean = mean * f_old + tf.reduce_mean(x, axis = 0) * (1 - f_old)
+            n_processed += n_this
+        mse = 0
+        n_processed = 0
+        for ele in dataset:
+            x, _ = scheme_func(ele)
+            n_old = 0
+            n_this = x.shape[0]
+            f_old = n_old / (n_old + n_this)
+            # mse_new = mse_old * n_old / (n_old + n_this) + mse_this * n_this / (n_old + n_this)
+            mse_this = tf.reduce_mean(
+                tf.math.squared_difference(x, batch_mean), 
+                axis = 0)
+            )
+            mse = mse * f_old + mse_this * (1 - f_old)
+        std = tf.math.sqrt(mse)
+        return mean, std
+    def apply(self, x):
+        return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
+        
         
             
 class LeastSquaredEstimator:
@@ -170,7 +202,7 @@ class LeastSquaredEstimator:
         if logging is not None and sample_size is not None:
             timer = 0
         if self.batch_normalization_shuffle > 0:
-            normalizer = BatchNormalizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset, shuffle = self.batch_normalization_shuffle)
+            normalizer = alizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset, shuffle = self.batch_normalization_shuffle)
             # print(normalizer.mean)
             # print(normalizer.std)
         self._init_xtx_xty()
@@ -235,7 +267,7 @@ class LeastSquaredEstimator:
         y_ = []
         y_pred_ = []
         if self.batch_normalization_shuffle > 0:
-            normalizer = BatchNormalizer(self.data_scheme.get_data_matrix, dataset, shuffle = self.batch_normalization_shuffle)
+            normalizer = FullNormalizer(self.data_scheme.get_data_matrix, dataset, shuffle = self.batch_normalization_shuffle)
         for ele in dataset:
             x, y = self.data_scheme.get_data_matrix(ele)
             if self.batch_normalization_shuffle > 0:
@@ -258,7 +290,7 @@ class LeastSquaredEstimator:
         y_pred_ = []
         if self.batch_normalization_shuffle > 0:
             scheme_func = functools.partial(self.data_scheme.get_data_matrix, only_x = True)
-            normalizer = BatchNormalizer(scheme_func, dataset, shuffle = self.batch_normalization_shuffle)
+            normalizer = FullNormalizer(scheme_func, dataset, shuffle = self.batch_normalization_shuffle)
             # print(normalizer.mean)
             # print(normalizer.std)              
         for ele in dataset:
