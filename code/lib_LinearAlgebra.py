@@ -152,7 +152,25 @@ class FullNormalizer:
     def apply(self, x):
         return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
         
-        
+class _nested_y_DataScheme:
+    def __init__(self, dataset = None, X_index = None, Y_index = None, predictor_indice = None, outcome_indice = None, covariate_indice = None):
+        self.dataset = dataset
+        self.X_index = X_index
+        self.Y_index = Y_index
+        self.predictor_indice = predictor_indice
+        self.outcome_indice = outcome_indice
+        self.covariate_indice = covariate_indice
+    def get_data_matrix(self, element):
+        y = element[self.Y_index[0]][self.Y_index[1]]
+        covar = tf.gather(y, self.covariate_indice, axis = 1)
+        y = tf.gather(y, self.outcome_indice, axis = 1) 
+        if self.predictor_indice is None:
+            x = covar
+        else:
+            x = element[self.X_index]
+            y = tf.gather(x, self.predictor_indice, axis = 1) 
+            x = tf.concat((x, covar), axis = 1)
+        return x, y
             
 class LeastSquaredEstimator:
     def __init__(self, data_scheme, normalizer = False, rcond = 1e-10, intercept = False):
@@ -313,10 +331,17 @@ class LeastSquaredEstimator:
     def partial_r2(self, dataset, batch_size = 128, logging = None):
         pred = self.predict_x(dataset)
         ## setup for new data scheme
-        dataset = new_data
-        X_index = 2
-        Y_index = 1
+        yy_pred = tf.data.Dataset.from_tensor_slices(pred['y_pred_from_x']
+        new_data = tf.data.Dataset.zip((dataset.unbatch(), yy_pred)).batch(batch_size)
+        X_index = 1
+        Y_index = (0, 1)
         covariate_indice = self.data_scheme.covariate_indice
+        scheme_i = _nested_y_DataScheme(
+            dataset = new_data, 
+            X_index = X_index,
+            Y_index = Y_index,
+            covariate_indice = covariate_indice
+        )
         ## END
         n_total = pred['y_pred_from_x'].shape[1]
         result = np.empty((n_total, 3))
@@ -324,22 +349,14 @@ class LeastSquaredEstimator:
         for pred_i in range(n_total):
             if logging is not None:
                 logging.info(f'Partial R2 Processing {pred_i} / {n_total}')
-            yy_pred = tf.data.Dataset.from_tensor_slices(pred['y_pred_from_x'][:,pred_i])
-            # yy_null = tf.data.Dataset.from_tensor_slices(tf.ones(pred['y_pred_from_x'][:,pred_i].shape))
-            new_data = tf.data.Dataset.zip((dataset.unbatch(), yy_pred)).batch(batch_size)
-            # new_data_null = tf.data.Dataset.zip((dataset.unbatch(), yy_null)).batch(batch_size)
-            scheme_i = DataScheme(
-                dataset = new_data, 
-                X_index = X_index,
-                Y_index = Y_index,
-                outcome_indice = [pred_i],
-                covariate_indice = covariate_indice
-            )
+            print('now processing outcome index {}'.format(self.data_scheme.outcome_indice[pred_i]))
+            scheme_i.outcome_indice = [self.data_scheme.outcome_indice[pred_i]]
+            scheme_i.predictor_indice = [pred_i]
             solve_full = LeastSquaredEstimator(scheme_i, intercept = True, normalizer = True)
             solve_full.solve()
             out_full = solve_full.predict(scheme_i.dataset)
             sse_full = tf.reduce_sum(tf.math.squared_difference(out_full['y'], out_full['y_pred']))
-            scheme_i.X_index = None
+            scheme_i.predictor_indice = None
             solve_null = LeastSquaredEstimator(scheme_i, intercept = True, normalizer = True)
             solve_null.solve()
             out_null = solve_null.predict(scheme_i.dataset)
