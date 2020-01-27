@@ -160,6 +160,10 @@ class _nested_y_DataScheme:
         self.predictor_indice = predictor_indice
         self.outcome_indice = outcome_indice
         self.covariate_indice = covariate_indice
+        self.num_predictors = self.get_num_predictor()
+    def update_predictor_indice(self, predictor_indice):
+        self.predictor_indice = predictor_indice
+        self.num_predictors = self.get_num_predictor()
     def get_data_matrix(self, element):
         y = element[self.Y_index[0]][self.Y_index[1]]
         covar = tf.gather(y, self.covariate_indice, axis = 1)
@@ -171,6 +175,17 @@ class _nested_y_DataScheme:
             y = tf.gather(x, self.predictor_indice, axis = 1) 
             x = tf.concat((x, covar), axis = 1)
         return x, y
+    def _get_indice_length(self, indice):
+        if indice is None:
+            return 0
+        else:
+            return len(self.indice)
+    def get_num_outcome(self):
+            return _get_indice_length(self.outcome_indice)
+    def get_num_covariate(self):
+            return _get_indice_length(self.covariate_indice)
+    def get_num_predictor(self):
+            return _get_indice_length(self.predictor_indice)
             
 class LeastSquaredEstimator:
     def __init__(self, data_scheme, normalizer = False, rcond = 1e-10, intercept = False):
