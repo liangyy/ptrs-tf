@@ -14,9 +14,8 @@ parser.add_argument('--model-output', required=True, help='''
 parser.add_argument('--batch-size', default=128, type=int, help='''
     Batch size to process the input matrix
 ''')
-parser.add_argument('--batch-norm-shuffle', default=-1, type=int, help='''
-    Draw among the first N batches.
-    Default -1 means no batch normalization
+parser.add_argument('--normalize', action='store_true', help='''
+    If specified, run normalization for each feature before least square 
 ''')
 parser.add_argument('--normalizer-output', default=None, help='''
     HDF5 to mean and std inside normalizer used. 
@@ -59,8 +58,8 @@ data_scheme, sample_size = util_hdf5.build_data_scheme(
     batch_size = args.batch_size
 )
 
-logging.info('Building least squared solver: batch normalization param = {}'.format(args.batch_norm_shuffle))
-least_square_solver = lib_LinearAlgebra.LeastSquaredEstimator(data_scheme, intercept = True, batch_normalization_shuffle = args.batch_norm_shuffle)
+logging.info('Building least squared solver: normalization param = {}'.format(args.normalize))
+least_square_solver = lib_LinearAlgebra.LeastSquaredEstimator(data_scheme, intercept = True, normalizer = args.normalize)
 
 logging.info('Running least squared solver')
 if args.normalizer_output is not None:

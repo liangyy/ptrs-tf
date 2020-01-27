@@ -88,6 +88,9 @@ class SVDInstance:
         self.d = None
     def solve(self, mat):
         s, self.u, self.v = tf.linalg.svd(mat)
+        mat_rank = tf.linalg.matrix_rank(mat).numpy()
+        # Thresholding by rank
+        s = tf.where(range(len(s)) < mat_rank, s, tf.zeros(s.shape))
         # Ignore singular values close to zero to prevent numerical overflow
         limit = self.rcond * tf.reduce_max(mat)
         non_zero = tf.greater(s, limit)
