@@ -331,7 +331,7 @@ class LeastSquaredEstimator:
     def partial_r2(self, dataset, batch_size = 128, logging = None):
         pred = self.predict_x(dataset)
         ## setup for new data scheme
-        yy_pred = tf.data.Dataset.from_tensor_slices(pred['y_pred_from_x']
+        yy_pred = tf.data.Dataset.from_tensor_slices(pred['y_pred_from_x'])
         new_data = tf.data.Dataset.zip((dataset.unbatch(), yy_pred)).batch(batch_size)
         X_index = 1
         Y_index = (0, 1)
