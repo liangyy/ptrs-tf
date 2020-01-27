@@ -87,14 +87,19 @@ class SVDInstance:
         self.v = None
         self.d = None
     def solve(self, mat):
-        s, self.u, self.v = tf.linalg.svd(mat)
+        s, u, v = tf.linalg.svd(mat)
         mat_rank = tf.linalg.matrix_rank(mat).numpy()
         # Thresholding by rank
-        s = tf.where(range(len(s)) < mat_rank, s, tf.zeros(s.shape))
+        discard_idx = tf.where(range(len(s)) < mat_rank)
+        s = s[discard_idx]
+        u = u[:, discard_idx]
+        v = v[:, discard_idx]
         # Ignore singular values close to zero to prevent numerical overflow
         limit = self.rcond * tf.reduce_max(mat)
         non_zero = tf.greater(s, limit)
         self.s = tf.where(non_zero, s, tf.zeros(s.shape))
+        self.u = self.u
+        self.v = self.v
 
 class BatchNormalizer:
     def __init__(self, scheme_func, dataset, shuffle = 100):
