@@ -15,7 +15,7 @@ class ElasticNet:
         self.alpha = alpha
         self.lambda_ = lambda_
         l1, l2 = self.lambda_alpha_to_l1_l2(alpha, lambda_)
-        update_l1_l2(l1, l2)
+        self.update_l1_l2(l1, l2)
     
     def update_l1_l2(self, l1, l2):
         self.l1 = tf.constant(tf.cast(l1, tf.float32))
@@ -52,9 +52,9 @@ class ElasticNet:
         return tf.add(tmp, self.regu_l2()), tmp
 
     def update_lambda(self, lambda_):
-        l1, l2 = self.lambda_alpha_to_l1_l2(alpha, lambda_)
+        l1, l2 = self.lambda_alpha_to_l1_l2(self.alpha, lambda_)
         self.lambda_ = lambda_
-        update_l1_l2(l1, l2)
+        self.update_l1_l2(l1, l2)
 
 class ProximalUpdater:  # it is not called optimizer to distinguish from the Optimizer class in TF2
     def __init__(self, learning_rate = None):
@@ -78,7 +78,7 @@ class ProximalUpdater:  # it is not called optimizer to distinguish from the Opt
                 var.assign(var - tf.multiply(self.learning_rate, grad))
             for grad, var in pairs_prox:
                 tmp_prox = var - tf.multiply(self.learning_rate, grad)
-                var.assign(self.prox_l1(tmp_prox, tf.multiply(l1, learning_rate)))
+                var.assign(self.prox_l1(tmp_prox, tf.multiply(l1, self.learning_rate)))
             return col
         else:
             # TODO: add backtrack line search to determine step size 
@@ -91,10 +91,9 @@ class ProximalUpdater:  # it is not called optimizer to distinguish from the Opt
         grad = tape.gradient(obj, [model.proximal_variables, model.not_prox_variables])
         grad_prox = grad[0]
         grad_not_prox = grad[1]
-        proximal_update(
+        self.proximal_update(
             zip(grad_prox, model.proximal_variables), 
             zip(grad_not_prox, model.not_prox_variables), 
-            model.l1, 
-            learning_rate = self.learning_rate
+            model.l1 
         )
         return loss, obj
