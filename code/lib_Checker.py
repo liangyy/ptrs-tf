@@ -50,7 +50,7 @@ class Checker:
     def ifstop(self):
         return self.stop_rule(self.criteria_summary)
     def _empty_criteria_curr(self):
-        return np.empty((self.nbatch, ))
+        return np.zeros((self.nbatch, ))
     def _get_nbatch(self):
         div = int(self.sample_size / self.batch_size) 
         if self.sample_size % self.batch_size == 0:
