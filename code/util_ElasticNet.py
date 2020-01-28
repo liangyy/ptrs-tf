@@ -2,6 +2,8 @@ import tensorflow as tf
 import tensorflow_io as tfio
 import numpy as np
 import h5py
+import re
+import util_Stats
 
 # elastic net math related
 def get_lambda_max(model, x, y):
@@ -38,7 +40,7 @@ def train_step(model, x, y, optimizer):
 # END --
 
 # data I/O
-def load_hdf5_as_dataset(filename_list, dataset_list, batch_size, num_epochs, shuffle = None, take = None):
+def load_hdf5_as_dataset(filename_list, dataset_list, batch_size, num_epochs, shuffle = None, take = None, inv_norm_y = False):
     '''
     `filename_list` and `dataset_list` should be file path and dataset name of x and y
     It maps all numbers to tf.float32 using tf.cast
@@ -50,7 +52,14 @@ def load_hdf5_as_dataset(filename_list, dataset_list, batch_size, num_epochs, sh
     h5handle.close()
     # load dataset ad TF Dataset
     X = tfio.IODataset.from_hdf5(filename_list[0], dataset_list[0])
-    y = tfio.IODataset.from_hdf5(filename_list[1], dataset_list[1])
+    if inv_norm_y is False:
+        y = tfio.IODataset.from_hdf5(filename_list[1], dataset_list[1])
+    else:
+        with h5py.File(filename_list[1], 'r') as f:
+            name_y = re.sub('^/', '', dataset_list[1])
+            y = f[name_y][:]
+            y = util_Stats.inv_norm_col(y)
+        y = tf.data.Dataset.from_tensor_slices(y)
     if take is not None:
         X = X.take(take)
         y = y.take(take)

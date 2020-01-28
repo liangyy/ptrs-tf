@@ -172,20 +172,20 @@ class _nested_y_DataScheme:
             x = covar
         else:
             x = element[self.X_index]
-            y = tf.gather(x, self.predictor_indice, axis = 1) 
+            x = tf.gather(x, self.predictor_indice, axis = 1) 
             x = tf.concat((x, covar), axis = 1)
         return x, y
     def _get_indice_length(self, indice):
         if indice is None:
             return 0
         else:
-            return len(self.indice)
+            return len(indice)
     def get_num_outcome(self):
-            return _get_indice_length(self.outcome_indice)
+            return self._get_indice_length(self.outcome_indice)
     def get_num_covariate(self):
-            return _get_indice_length(self.covariate_indice)
+            return self._get_indice_length(self.covariate_indice)
     def get_num_predictor(self):
-            return _get_indice_length(self.predictor_indice)
+            return self._get_indice_length(self.predictor_indice)
             
 class LeastSquaredEstimator:
     def __init__(self, data_scheme, normalizer = False, rcond = 1e-10, intercept = False):
@@ -364,14 +364,14 @@ class LeastSquaredEstimator:
         for pred_i in range(n_total):
             if logging is not None:
                 logging.info(f'Partial R2 Processing {pred_i} / {n_total}')
-            print('now processing outcome index {}'.format(self.data_scheme.outcome_indice[pred_i]))
+                logging.info('now processing outcome index {}'.format(self.data_scheme.outcome_indice[pred_i]))
             scheme_i.outcome_indice = [self.data_scheme.outcome_indice[pred_i]]
-            scheme_i.predictor_indice = [pred_i]
+            scheme_i.update_predictor_indice([pred_i])
             solve_full = LeastSquaredEstimator(scheme_i, intercept = True, normalizer = True)
             solve_full.solve()
             out_full = solve_full.predict(scheme_i.dataset)
             sse_full = tf.reduce_sum(tf.math.squared_difference(out_full['y'], out_full['y_pred']))
-            scheme_i.predictor_indice = None
+            scheme_i.update_predictor_indice(None)
             solve_null = LeastSquaredEstimator(scheme_i, intercept = True, normalizer = True)
             solve_null.solve()
             out_null = solve_null.predict(scheme_i.dataset)
