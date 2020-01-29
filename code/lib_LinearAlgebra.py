@@ -493,9 +493,9 @@ class ElasticNetEstimator:
         If the dataset is repeated.
         It may extract the same element multiple times.
         '''
-        dataset_for_load = data_scheme.dataset.unbatch().take(max_size)
+        dataset_for_load = self.data_scheme.dataset.unbatch().take(max_size)
         for ele in dataset_for_load.batch(max_size):
-            x, y = data_scheme.get_data_matrix(ele)
+            x, y = self.data_scheme.get_data_matrix(ele)
             break
         return x, y
     def _concat(self, vec_list):
@@ -506,7 +506,7 @@ class ElasticNetEstimator:
         for i in range(1, len(vec_list)):
             tmp = np.concatenate((tmp, vec_list[i]), axis = 0)
         return tmp
-    def solve(self, sample_size, batch_size, checker, logging = None, x_check = None, y_check = None):
+    def solve(self, checker, logging = None, x_check = None, y_check = None):
         '''
         Solve for a sequence of lambda and return a sequence of betahat (for x, covar, and intercept) correspondingly and the objective captured by checker.
         From lambda_max to lambda_min, it solves a sequence of Elastic Net models. 
@@ -543,18 +543,19 @@ class ElasticNetEstimator:
                         obj_check = self.model.objective(x, y)[0]
                     else:
                         obj_check = self.model.objective(x_check, y_check)[0]
+                    checker.record(update_status, obj_check)
                     if checker.ifstop() == True:
                         break
             beta_hat[:, counter] = self.model.A[:n_pred, 0]
             covar_hat[:, counter] = self.model.A[n_pred:, 0]
-            intercept_hat[:, counter] = self.model.b
+            intercept_hat[:, counter] = self.model.b[0]
             checker_summary.append(np.array(checker.criteria_summary))
             loop_summary.append(checker.epoch_counter)
-            self.beta_hat_path = beta_hat
-            self.covar_hat_path = covar_hat
-            self.intercept_path = intercept
             outer_counter += 1
             counter += 1
+        self.beta_hat_path = beta_hat
+        self.covar_hat_path = covar_hat
+        self.intercept_path = intercept_hat
         return { 'obj': self._concat(checker_summary), 'niter': np.array(loop_summary) }
     def predict(self, dataset, beta, covar, intercept):
         '''
