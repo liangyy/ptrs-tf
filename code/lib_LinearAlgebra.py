@@ -3,6 +3,7 @@ import numpy as np
 import h5py 
 import re
 import functools
+import lib_ElasticNet, util_ElasticNet
 
 class DataScheme:
     '''
@@ -431,6 +432,176 @@ class LeastSquaredEstimator:
                         setattr(self, i, tf.constant(f[i][:], tf.float32))
         self.data_scheme = data_scheme
                       
-                
-            
-    
+
+class ElasticNetEstimator:
+    def __init__(self, data_scheme, alpha, normalizer = False, learning_rate = 0.05, updater = None, lambda_init_dict = None):
+        '''
+        updater is set should be a dict: 
+        {
+            'updater': updater
+            'update_fun': update_fun
+        }
+        and learning rate will be ignored
+        '''
+        self.normalizer = normalizer
+        self.data_scheme = data_scheme
+        self._init_updater(learning_rate, updater)
+        self._init_model(alpha, lambda_init_dict)
+    def _init_updater(self, learning_rate, updater):
+        '''
+        Set up _updater and update_fun
+        '''
+        if updater is None:
+            # use the default: proximal gradient updater
+            self._updater = lib_ElasticNet.ProximalUpdater(learning_rate)
+            self.update_fun = self._updater.proximal_train_step
+        else:
+            self._updater = updater['updater']
+            self.update_fun = updater['update_fun']
+    def _init_model(self, alpha, lambda_init_dict):
+        '''
+        Initialize the elastic net model.
+        Calculate lambda_max using data_init
+        '''
+        if lambda_init_dict is None:
+            lambda_init_dict = {
+                'data_init': None, 
+                'prefactor_of_lambda_max': 2,
+                'lambda_max_over_lambda_min': 1e3,
+                'nlambda': 100
+            }
+        # initialize model
+        nx = self.data_scheme.get_num_covariate() + self.data_scheme.get_num_predictor()  
+        model_lseq = lib_ElasticNet.ElasticNet(nx, alpha, 0)  
+        # compute lambda sequence 
+        if lambda_init_dict['data_init'] is None:
+            x_init, y_init = self._lazy_load()   
+        else:
+            x_init, y_init = lambda_init_dict['data_init']
+        lambda_max = util_ElasticNet.get_lambda_max(model_lseq, x_init, y_init) * lambda_init_dict['prefactor_of_lambda_max']
+        lambda_seq = util_ElasticNet.get_lambda_sequence(
+            lambda_max, 
+            lambda_max / lambda_init_dict['lambda_max_over_lambda_min'], 
+            lambda_init_dict['nlambda']
+        )
+        # done and return
+        self.model = model_lseq
+        self.lambda_seq = lambda_seq
+    def _lazy_load(self, max_size = 1000):
+        '''
+        This is lazy loading.
+        If the dataset is repeated.
+        It may extract the same element multiple times.
+        '''
+        dataset_for_load = data_scheme.dataset.unbatch().take(max_size)
+        for ele in dataset_for_load.batch(max_size):
+            x, y = data_scheme.get_data_matrix(ele)
+            break
+        return x, y
+    def _concat(self, vec_list):
+        '''
+        Concatenate a list of 1-dim numpy array
+        '''
+        tmp = vec_list[0]
+        for i in range(1, len(vec_list)):
+            tmp = np.concatenate((tmp, vec_list[i]), axis = 0)
+        return tmp
+    def solve(self, sample_size, batch_size, checker, logging = None, x_check = None, y_check = None):
+        '''
+        Solve for a sequence of lambda and return a sequence of betahat (for x, covar, and intercept) correspondingly and the objective captured by checker.
+        From lambda_max to lambda_min, it solves a sequence of Elastic Net models. 
+        At each inner loop, it runs in batch (the batch size is determined by dataset). 
+        For each epoch (one scanning through the data), checker will evaluate objective on (x_check, y_check) or last batch (x, y).
+        And determine if to stop by looking at the objective sequence (the rule is specified in stop_rule).
+        '''
+        if self.normalizer == True:
+            normalizer = FullNormalizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset)
+        n_covar = self.data_scheme.get_num_covariate()
+        n_pred = self.data_scheme.get_num_predictor()
+        beta_hat = np.empty((n_pred, len(self.lambda_seq)))
+        covar_hat = np.empty((n_covar, len(self.lambda_seq)))
+        intercept_hat = np.empty((1, len(self.lambda_seq)))
+        checker_summary = []
+        loop_summary = []
+        counter = 0
+        outer_counter = 0
+        for lambda_i in self.lambda_seq:
+            self.model.update_lambda(lambda_i)
+            checker.reset()
+            for ele in self.data_scheme.dataset:
+                x, y = self.data_scheme.get_data_matrix(ele)
+                if self.normalizer == True:
+                    x = normalizer.apply(x)
+                step_size = x.shape[0]
+                obj, loss = self.update_fun(self.model, x, y)
+                update_status = checker.update(step_size)
+                if update_status == 0:
+                    # gone through one epoch
+                    if logging is not None:
+                        logging.info('Gone through outer loop {} / {} and inner loop {} epoch'.format(outer_counter + 1, len(self.lambda_seq), checker.epoch_counter))
+                    if x_check is None or y_check is None:
+                        obj_check = self.model.objective(x, y)[0]
+                    else:
+                        obj_check = self.model.objective(x_check, y_check)[0]
+                    if checker.ifstop() == True:
+                        break
+            beta_hat[:, counter] = self.model.A[:n_pred, 0]
+            covar_hat[:, counter] = self.model.A[n_pred:, 0]
+            intercept_hat[:, counter] = self.model.b
+            checker_summary.append(np.array(checker.criteria_summary))
+            loop_summary.append(checker.epoch_counter)
+            self.beta_hat_path = beta_hat
+            self.covar_hat_path = covar_hat
+            self.intercept_path = intercept
+            outer_counter += 1
+            counter += 1
+        return { 'obj': self._concat(checker_summary), 'niter': np.array(loop_summary) }
+    def predict(self, dataset, beta, covar, intercept):
+        '''
+        We assume dataset has the same data_scheme as self.data_scheme.
+        y_pred = ((intercept), x, covar) %*% betahat
+        It returns y, ypred as numpy array
+        beta, covar, intercept should be 2-dim (n_var, k_models)
+        '''
+        Amat = tf.constant(np.concatenate(beta, covar, axis = 0))
+        bmat = tf.constant(intercept)
+        y_ = []
+        y_pred_ = []
+        if self.normalizer == True:
+            normalizer = FullNormalizer(self.data_scheme.get_data_matrix, dataset)
+        for ele in dataset:
+            x, y = self.data_scheme.get_data_matrix(ele)
+            if self.normalizer == True:
+                x = normalizer.apply(x)
+            y_pred_.append(
+                tf.math.add(
+                    tf.matmul(x, Amat),
+                    bmat
+                )
+            )
+            y_.append(y)
+        y_pred_ = self._reshape_y(y_pred_)
+        y_ = self._reshape_y(y_)
+        return {'y_pred': y_pred_, 'y': y_}
+    def predict_x(self, dataset, beta):
+        '''
+        We assume dataset has the same data_scheme as self.data_scheme.
+        y_pred = x %*% betahat_x
+        It returns y, ypred as numpy array
+        '''
+        Amat = tf.constant(beta, covar, axis = 0)
+        y_ = []
+        y_pred_ = []
+        if self.normalizer == True:
+            scheme_func = functools.partial(self.data_scheme.get_data_matrix, only_x = True)
+            normalizer = FullNormalizer(scheme_func, dataset)
+        for ele in dataset:
+            x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
+            if self.normalizer == True:
+                x = normalizer.apply(x)
+            y_pred_.append(tf.matmul(x, Amat))
+            y_.append(y)
+        y_pred_ = self._reshape_y(y_pred_)
+        y_ = self._reshape_y(y_)
+        return {'y_pred_from_x': y_pred_, 'y': y_} 
+        
