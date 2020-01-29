@@ -21,7 +21,9 @@ class Checker:
         self.stop_rule = stop_rule
         # internal state for current epoch
         self._criteria_curr = self._empty_criteria_curr()  
-        self._iter_in_epoch_counter = 0
+        self._iter_in_epoch_counter = -1  # update will add 1
+    def reset(self):
+        self.__init__(self.sample_size, self.batch_size, self.stat_fun, self.stop_rule)
     def update(self, step_size = 1):
         '''
         update the internal states and return -1 if still in the same epoch or 0 if update epoch
