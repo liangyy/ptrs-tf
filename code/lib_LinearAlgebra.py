@@ -506,7 +506,7 @@ class ElasticNetEstimator:
         for i in range(1, len(vec_list)):
             tmp = np.concatenate((tmp, vec_list[i]), axis = 0)
         return tmp
-    def solve(self, checker, logging = None, x_check = None, y_check = None):
+    def solve(self, checker, nepoch = 10, logging = None, x_check = None, y_check = None):
         '''
         Solve for a sequence of lambda and return a sequence of betahat (for x, covar, and intercept) correspondingly and the objective captured by checker.
         From lambda_max to lambda_min, it solves a sequence of Elastic Net models. 
@@ -515,7 +515,11 @@ class ElasticNetEstimator:
         And determine if to stop by looking at the objective sequence (the rule is specified in stop_rule).
         '''
         if self.normalizer == True:
+            if logging is not None:
+                logging.info('start norm')
             normalizer = FullNormalizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset)
+            if logging is not None:
+                logging.info('end norm')
         n_covar = self.data_scheme.get_num_covariate()
         n_pred = self.data_scheme.get_num_predictor()
         beta_hat = np.empty((n_pred, len(self.lambda_seq)))
@@ -528,7 +532,7 @@ class ElasticNetEstimator:
         for lambda_i in self.lambda_seq:
             self.model.update_lambda(lambda_i)
             checker.reset()
-            for ele in self.data_scheme.dataset:
+            for ele in self.data_scheme.dataset.repeat(nepoch):
                 x, y = self.data_scheme.get_data_matrix(ele)
                 if self.normalizer == True:
                     x = normalizer.apply(x)
@@ -564,8 +568,8 @@ class ElasticNetEstimator:
         It returns y, ypred as numpy array
         beta, covar, intercept should be 2-dim (n_var, k_models)
         '''
-        Amat = tf.constant(np.concatenate(beta, covar, axis = 0))
-        bmat = tf.constant(intercept)
+        Amat = tf.constant(np.concatenate(beta, covar, axis = 0), tf.float32)
+        bmat = tf.constant(intercept, tf.float32)
         y_ = []
         y_pred_ = []
         if self.normalizer == True:
@@ -590,7 +594,7 @@ class ElasticNetEstimator:
         y_pred = x %*% betahat_x
         It returns y, ypred as numpy array
         '''
-        Amat = tf.constant(beta, covar, axis = 0)
+        Amat = tf.constant(beta, tf.float32)
         y_ = []
         y_pred_ = []
         if self.normalizer == True:
@@ -605,4 +609,6 @@ class ElasticNetEstimator:
         y_pred_ = self._reshape_y(y_pred_)
         y_ = self._reshape_y(y_)
         return {'y_pred_from_x': y_pred_, 'y': y_} 
-        
+    def _reshape_y(self, y_list):
+        return np.concatenate(y_list, axis = 0)
+   
