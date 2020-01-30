@@ -472,21 +472,31 @@ class ElasticNetEstimator:
             }
         # initialize model
         nx = self.data_scheme.get_num_covariate() + self.data_scheme.get_num_predictor()  
-        model_lseq = lib_ElasticNet.ElasticNet(nx, alpha, 0)  
+        ny = self.data_scheme.get_num_outcome()
+        model_list = []
+        for i in range(ny):
+            model_lseq = lib_ElasticNet.ElasticNet(nx, alpha, 0)  
+            model_list.append(model_lseq)
         # compute lambda sequence 
         if lambda_init_dict['data_init'] is None:
             x_init, y_init = self._lazy_load()   
         else:
             x_init, y_init = lambda_init_dict['data_init']
-        lambda_max = util_ElasticNet.get_lambda_max(model_lseq, x_init, y_init) * lambda_init_dict['prefactor_of_lambda_max']
-        lambda_seq = util_ElasticNet.get_lambda_sequence(
-            lambda_max, 
-            lambda_max / lambda_init_dict['lambda_max_over_lambda_min'], 
-            lambda_init_dict['nlambda']
-        )
+        lambda_max_list = []
+        for i in range(ny):
+            lambda_max = util_ElasticNet.get_lambda_max(model_list[i], x_init, y_init[:, i, np.newaxis]) * lambda_init_dict['prefactor_of_lambda_max']
+            model_list.append(lambda_max)
+        lambda_seq_list = []
+        for i in range(ny):
+            lambda_seq = util_ElasticNet.get_lambda_sequence(
+                lambda_max, 
+                lambda_max / lambda_init_dict['lambda_max_over_lambda_min'], 
+                lambda_init_dict['nlambda']
+            )
+            lambda_seq_list.append(lambda_seq)
         # done and return
-        self.model = model_lseq
-        self.lambda_seq = lambda_seq
+        self.model = model_list
+        self.lambda_seq = lambda_seq_list
     def _lazy_load(self, max_size = 1000):
         '''
         This is lazy loading.
@@ -508,7 +518,7 @@ class ElasticNetEstimator:
         return tmp
     def solve(self, checker, nepoch = 10, logging = None, x_check = None, y_check = None):
         '''
-        Solve for a sequence of lambda and return a sequence of betahat (for x, covar, and intercept) correspondingly and the objective captured by checker.
+        Solve for a sequence of lambda and return a sequence of betahat (for x, covar, and intercept) correspondingly and the objective captured by checker (a list with num_outcomes number of checkers).
         From lambda_max to lambda_min, it solves a sequence of Elastic Net models. 
         At each inner loop, it runs in batch (the batch size is determined by dataset). 
         For each epoch (one scanning through the data), checker will evaluate objective on (x_check, y_check) or last batch (x, y).
@@ -522,45 +532,80 @@ class ElasticNetEstimator:
                 logging.info('end norm')
         n_covar = self.data_scheme.get_num_covariate()
         n_pred = self.data_scheme.get_num_predictor()
-        beta_hat = np.empty((n_pred, len(self.lambda_seq)))
-        covar_hat = np.empty((n_covar, len(self.lambda_seq)))
-        intercept_hat = np.empty((1, len(self.lambda_seq)))
-        checker_summary = []
-        loop_summary = []
+        n_model = len(self.model)
+        n_lambda = len(self.lambda_seq[0])
+        beta_hat = np.empty((n_pred, n_model, n_lambda))
+        covar_hat = np.empty((n_covar, n_model, n_lambda))
+        intercept_hat = np.empty((1, n_model, n_lambda))
+        checker_summary = [ [] for the_jth_model in range(n_model) ]
+        loop_summary = [ [] for the_jth_model in range(n_model) ]
         counter = 0
         outer_counter = 0
-        for lambda_i in self.lambda_seq:
-            self.model.update_lambda(lambda_i)
-            checker.reset()
+        for the_ith_lambda in range(n_lambda):
+            
+            # loop over models
+            for the_jth_model in range(n_model):
+                self.model.update_lambda(self.lambda_seq[the_jth_model][the_ith_lambda])
+                checker[the_jth_model].reset()
+            # end looping
+            
+            converged_models = [ False for the_jth_model in range(n_model) ]
             for ele in self.data_scheme.dataset.repeat(nepoch):
                 x, y = self.data_scheme.get_data_matrix(ele)
                 if self.normalizer == True:
                     x = normalizer.apply(x)
                 step_size = x.shape[0]
-                obj, loss = self.update_fun(self.model, x, y)
-                update_status = checker.update(step_size)
-                if update_status == 0:
+                
+                # loop over models
+                update_status = []
+                any_update = 0
+                for the_jth_model in range(n_model):
+                    if converged_models[the_jth_model] is True:
+                        continue
+                    any_update = 1
+                    self.update_fun(self.model[the_jth_model], x, y[:, the_jth_model, np.newaxis])
+                    update_status.append(checker[the_jth_model].update(step_size))
+                    if update_status[-1] == 0:
+                        if x_check is None or y_check is None:
+                            obj_check = self.model[the_jth_model].objective(x, y[:, the_jth_model, np.newaxis])[0]
+                        else:
+                            obj_check = self.model[the_jth_model].objective(x_check, y_check[:, the_jth_model, np.newaxis])[0]
+                        checker[the_jth_model].record(update_status[-1], obj_check)
+                        if checker[the_jth_model].ifstop() == True:
+                            converged_models[the_jth_model] = True
+                # end looping
+                
+                if update_status[0] == 0:
                     # gone through one epoch
                     if logging is not None:
-                        logging.info('Gone through outer loop {} / {} and inner loop {} epoch'.format(outer_counter + 1, len(self.lambda_seq), checker.epoch_counter))
-                    if x_check is None or y_check is None:
-                        obj_check = self.model.objective(x, y)[0]
-                    else:
-                        obj_check = self.model.objective(x_check, y_check)[0]
-                    checker.record(update_status, obj_check)
-                    if checker.ifstop() == True:
-                        break
-            beta_hat[:, counter] = self.model.A[:n_pred, 0]
-            covar_hat[:, counter] = self.model.A[n_pred:, 0]
-            intercept_hat[:, counter] = self.model.b[0]
-            checker_summary.append(np.array(checker.criteria_summary))
-            loop_summary.append(checker.epoch_counter)
+                        logging.info('Gone through outer loop {} / {} and inner loop {} epoch'.format(outer_counter + 1, len(n_lambda), checker.epoch_counter))
+                if sum(converged_models) == n_model:
+                    break
+                    
+            # loop over models
+            for the_jth_model in range(n_model):
+                beta_hat[:, the_jth_model, counter] = self.model[the_jth_model].A[:n_pred, 0]
+                covar_hat[:, the_jth_model, counter] = self.model[the_jth_model].A[n_pred:, 0]
+                intercept_hat[:, the_jth_model, counter] = self.model[the_jth_model].b[0]
+                checker_summary[the_jth_model].append(np.array(checker[the_jth_model].criteria_summary))
+                loop_summary[the_jth_model].append(checker[the_jth_model].epoch_counter)
+            # end looping
+            
             outer_counter += 1
             counter += 1
+            
         self.beta_hat_path = beta_hat
         self.covar_hat_path = covar_hat
         self.intercept_path = intercept_hat
-        return { 'obj': self._concat(checker_summary), 'niter': np.array(loop_summary) }
+        
+        # loop over models
+        return_dic = { 'obj': [], 'niter': [] }
+        for the_jth_model in range(n_model):
+            return_dic['obj'].append(self._concat(checker_summary[the_jth_model]))
+            return_dic['niter'].append(np.array(loop_summary[the_jth_model]))
+        # end looping
+        
+        return return_dic
     def predict(self, dataset, beta, covar, intercept):
         '''
         We assume dataset has the same data_scheme as self.data_scheme.
