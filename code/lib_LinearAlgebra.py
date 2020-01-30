@@ -485,7 +485,7 @@ class ElasticNetEstimator:
         lambda_max_list = []
         for i in range(ny):
             lambda_max = util_ElasticNet.get_lambda_max(model_list[i], x_init, y_init[:, i, np.newaxis]) * lambda_init_dict['prefactor_of_lambda_max']
-            model_list.append(lambda_max)
+            lambda_max_list.append(lambda_max)
         lambda_seq_list = []
         for i in range(ny):
             lambda_seq = util_ElasticNet.get_lambda_sequence(
@@ -545,7 +545,7 @@ class ElasticNetEstimator:
             
             # loop over models
             for the_jth_model in range(n_model):
-                self.model.update_lambda(self.lambda_seq[the_jth_model][the_ith_lambda])
+                self.model[the_jth_model].update_lambda(self.lambda_seq[the_jth_model][the_ith_lambda])
                 checker[the_jth_model].reset()
             # end looping
             
@@ -559,6 +559,7 @@ class ElasticNetEstimator:
                 # loop over models
                 update_status = []
                 any_update = 0
+                epoch_idx = 0
                 for the_jth_model in range(n_model):
                     if converged_models[the_jth_model] is True:
                         continue
@@ -566,6 +567,7 @@ class ElasticNetEstimator:
                     self.update_fun(self.model[the_jth_model], x, y[:, the_jth_model, np.newaxis])
                     update_status.append(checker[the_jth_model].update(step_size))
                     if update_status[-1] == 0:
+                        epoch_idx = checker[the_jth_model].epoch_counter
                         if x_check is None or y_check is None:
                             obj_check = self.model[the_jth_model].objective(x, y[:, the_jth_model, np.newaxis])[0]
                         else:
@@ -578,7 +580,7 @@ class ElasticNetEstimator:
                 if update_status[0] == 0:
                     # gone through one epoch
                     if logging is not None:
-                        logging.info('Gone through outer loop {} / {} and inner loop {} epoch'.format(outer_counter + 1, len(n_lambda), checker.epoch_counter))
+                        logging.info('Gone through outer loop {} / {} and inner loop {} epoch'.format(outer_counter + 1, n_lambda, epoch_idx))
                 if sum(converged_models) == n_model:
                     break
                     
