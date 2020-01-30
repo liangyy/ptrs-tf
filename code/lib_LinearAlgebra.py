@@ -568,7 +568,7 @@ class ElasticNetEstimator:
         It returns y, ypred as numpy array
         beta, covar, intercept should be 2-dim (n_var, k_models)
         '''
-        Amat = tf.constant(np.concatenate(beta, covar, axis = 0), tf.float32)
+        Amat = tf.constant(np.concatenate((beta, covar), axis = 0), tf.float32)
         bmat = tf.constant(intercept, tf.float32)
         y_ = []
         y_pred_ = []
