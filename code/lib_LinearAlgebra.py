@@ -489,8 +489,8 @@ class ElasticNetEstimator:
         lambda_seq_list = []
         for i in range(ny):
             lambda_seq = util_ElasticNet.get_lambda_sequence(
-                lambda_max, 
-                lambda_max / lambda_init_dict['lambda_max_over_lambda_min'], 
+                lambda_max_list[i], 
+                lambda_max_list[i] / lambda_init_dict['lambda_max_over_lambda_min'], 
                 lambda_init_dict['nlambda']
             )
             lambda_seq_list.append(lambda_seq)
@@ -627,7 +627,7 @@ class ElasticNetEstimator:
                 x = normalizer.apply(x)
             y_pred_.append(
                 tf.math.add(
-                    tf.matmul(x, Amat),
+                    tf.einsum('ij,jkq->ikq', x, Amat),  # tf.matmul(x, Amat),
                     bmat
                 )
             )
@@ -651,10 +651,11 @@ class ElasticNetEstimator:
             x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
             if self.normalizer == True:
                 x = normalizer.apply(x)
-            y_pred_.append(tf.matmul(x, Amat))
+            y_pred_.append(tf.einsum('ij,jkq->ikq', x, Amat))
             y_.append(y)
         y_pred_ = self._reshape_y(y_pred_)
         y_ = self._reshape_y(y_)
+        print(y_pred_.shape)
         return {'y_pred_from_x': y_pred_, 'y': y_} 
     def _reshape_y(self, y_list):
         return np.concatenate(y_list, axis = 0)
