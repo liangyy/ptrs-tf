@@ -434,7 +434,7 @@ class LeastSquaredEstimator:
                       
 
 class ElasticNetEstimator:
-    def __init__(self, data_scheme, alpha, normalizer = False, learning_rate = 0.05, updater = None, lambda_init_dict = None):
+    def __init__(self, data_scheme, alpha, normalizer = False, learning_rate = 0.05, updater = None, lambda_init_dict = None, minimal_load = False):
         '''
         updater is set should be a dict: 
         {
@@ -445,8 +445,10 @@ class ElasticNetEstimator:
         '''
         self.normalizer = normalizer
         self.data_scheme = data_scheme
-        self._init_updater(learning_rate, updater)
-        self._init_model(alpha, lambda_init_dict)
+        self.alpha = alpha
+        if minimal_load is False:
+            self._init_updater(learning_rate, updater)
+            self._init_model(alpha, lambda_init_dict)
     def _init_updater(self, learning_rate, updater):
         '''
         Set up _updater and update_fun
@@ -596,9 +598,9 @@ class ElasticNetEstimator:
             outer_counter += 1
             counter += 1
             
-        self.beta_hat_path = beta_hat
-        self.covar_hat_path = covar_hat
-        self.intercept_path = intercept_hat
+        self.beta_hat_path = tf.constant(beta_hat, tf.float32)
+        self.covar_hat_path = tf.constant(covar_hat, tf.float32)
+        self.intercept_path = tf.constant(intercept_hat, tf.float32)
         
         # loop over models
         return_dic = { 'obj': [], 'niter': [] }
@@ -672,10 +674,11 @@ class ElasticNetEstimator:
         '''
         save_dic = {}
         save_dic['lambda_seq'] = np.array(self.lambda_seq)
-        save_dic['beta_hat_path'] = self.betahat.numpy()
+        save_dic['beta_hat_path'] = self.beta_hat_path.numpy()
         save_dic['covar_hat_path'] = self.covar_hat_path.numpy()
         save_dic['intercept_path'] = self.intercept_path.numpy()
         save_dic['normalizer'] = self.normalizer * 1
+        save_dic['alpha'] = self.alpha
         for i in self.data_scheme.__dict__.keys():
             if i != 'dataset':
                 save_dic['data_scheme.' + i] = getattr(self.data_scheme, i)
@@ -711,4 +714,7 @@ class ElasticNetEstimator:
                     elif i == 'lambda_seq':
                         lambda_mat = f[i][:]
                         self.lambda_seq = [ lambda_mat[i, :] for i in range(lambda_mat.shape[0]) ]
+                    elif i == 'alpha':
+                        self.alpha = f[i][...]
         self.data_scheme = data_scheme
+
