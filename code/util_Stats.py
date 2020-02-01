@@ -74,3 +74,18 @@ def quick_partial_r2(x, y, yhat):
     partial_r2_deno = np.einsum('i,ij->ij', partial_r2_deno0, partial_r2_deno1)
     partial_r2 = partial_r2_nomi / partial_r2_deno
     return partial_r2
+def _quick_partial_r2_check_dim(x, y, yhat):
+    if len(x.shape) != 2:
+        raise ValueError('Wrong x shape')
+    if len(y.shape) != 2:
+        raise ValueError('Wrong y shape')
+    if len(yp.shape) != 3:
+        raise ValueError('Wrong yp shape')
+    ix, jx = x.shape
+    iy, ky = y.shape
+    iyp, kyp, pyp = yp.shape
+    if ix != iy or ix != iyp:
+        raise ValueError('Wrong dim-1 in x, y, yp do not match')
+    if ky != kyp:
+        raise ValueError('Wrong dim-2 in y, yp do not match')
+    return ix, jx, ky, pyp
