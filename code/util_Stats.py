@@ -1,7 +1,13 @@
 import scipy.stats
 import numpy as np
-def inv_norm_col(mat):
-    return np.apply_along_axis(inv_norm_vec, 0, mat)
+def inv_norm_col(mat, exclude_idx = None):
+    if exclude_idx is None:
+        return np.apply_along_axis(inv_norm_vec, 0, mat)
+    else:
+        out = np.apply_along_axis(inv_norm_vec, 0, mat)
+        out[:, exclude_idx] = mat[:, exclude_idx]
+        return out
+
 def inv_norm_vec(vec, offset = 1):
     rank = myrank(vec)
     return scipy.stats.norm.ppf(rank / (len(rank) + offset), loc = 0, scale = 1)
@@ -56,7 +62,8 @@ def quick_partial_r2(x, y, yhat):
     # x_xtx_inv_xt = np.einsum('ij,jk', x_, xtx_inv_xt)
     xty = np.einsum('ji,jk', x_, y)
     xtyhat = np.einsum('ji,jkp', x_, yhat)
-    xtx_inv = np.linalg.inv(xtx)
+    print(xtx.shape)
+    xtx_inv = np.linalg.pinv(xtx)
     xtx_inv_xty = np.einsum('ij,jk', xtx_inv, xty)
     xtx_inv_xtyhat = np.einsum('ij,jkp', xtx_inv, xtyhat)
     # compute k's
@@ -74,7 +81,7 @@ def quick_partial_r2(x, y, yhat):
     partial_r2_deno = np.einsum('i,ij->ij', partial_r2_deno0, partial_r2_deno1)
     partial_r2 = partial_r2_nomi / partial_r2_deno
     return partial_r2
-def _quick_partial_r2_check_dim(x, y, yhat):
+def _quick_partial_r2_check_dim(x, y, yp):
     if len(x.shape) != 2:
         raise ValueError('Wrong x shape')
     if len(y.shape) != 2:

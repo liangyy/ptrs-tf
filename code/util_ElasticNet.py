@@ -40,7 +40,7 @@ def train_step(model, x, y, optimizer):
 # END --
 
 # data I/O
-def load_hdf5_as_dataset(filename_list, dataset_list, batch_size, num_epochs, shuffle = None, take = None, inv_norm_y = False):
+def load_hdf5_as_dataset(filename_list, dataset_list, batch_size, num_epochs, shuffle = None, take = None, inv_norm_y = False, covar_indice = None):
     '''
     `filename_list` and `dataset_list` should be file path and dataset name of x and y
     It maps all numbers to tf.float32 using tf.cast
@@ -58,7 +58,7 @@ def load_hdf5_as_dataset(filename_list, dataset_list, batch_size, num_epochs, sh
         with h5py.File(filename_list[1], 'r') as f:
             name_y = re.sub('^/', '', dataset_list[1])
             y = f[name_y][:]
-            y = util_Stats.inv_norm_col(y)
+            y = util_Stats.inv_norm_col(y, exclude_idx = covar_indice)
         y = tf.data.Dataset.from_tensor_slices(y)
     if take is not None:
         X = X.take(take)
