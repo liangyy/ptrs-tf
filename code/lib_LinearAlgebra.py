@@ -506,8 +506,12 @@ class ElasticNetEstimator:
         It may extract the same element multiple times.
         '''
         dataset_for_load = self.data_scheme.dataset.unbatch().take(max_size)
+        if self.normalizer == True:
+            normalizer = FullNormalizer(self.data_scheme.get_data_matrix, self.data_scheme.dataset)
         for ele in dataset_for_load.batch(max_size):
             x, y = self.data_scheme.get_data_matrix(ele)
+            if self.normalizer == True:
+                x = normalizer.apply(x)
             break
         return x, y
     def _concat(self, vec_list):
