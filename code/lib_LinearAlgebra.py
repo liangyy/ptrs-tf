@@ -10,19 +10,23 @@ class DataScheme:
     X is predictor matrix
     Y is outcome / covariate matrix
     '''
-    def __init__(self, dataset = None, X_index = None, Y_index = None, outcome_indice = None, covariate_indice = None):
+    def __init__(self, dataset = None, X_index = None, Y_index = None, outcome_indice = None, covariate_indice = None, x_indice = None):
         self.dataset = dataset
         self.X_index = None
         self.Y_index = None
         self.outcome_indice = None
         self.covariate_indice = None
+        self.x_indice = None
         self._update_index(X_index, 'X_index')
         self._update_index(Y_index, 'Y_index')
         self._update_indice(outcome_indice, 'outcome_indice')
         self._update_indice(covariate_indice, 'covariate_indice')
+        self._update_indice(x_indice, 'x_indice', type = 'X')
         self.num_predictors = self.get_num_predictor()
     def get_data_matrix(self, element, only_x = False):
         x = element[self.X_index]
+        if self.x_index is not None:
+            x = tf.gather(x, self.x_index, axis = 1)
         y = element[self.Y_index]
         if only_x is False:
             covar = tf.gather(y, self.covariate_indice, axis = 1)
@@ -50,7 +54,10 @@ class DataScheme:
         if self.X_index is None:
             return None
         else:
-            return self.dataset.element_spec[self.X_index].shape[-1]
+            if self.x_indice is None:
+                return self.dataset.element_spec[self.X_index].shape[-1]
+            else:
+                return len(self.x_indice)
     def get_num_outcome(self):
         if self.outcome_indice is None:
             return None
@@ -68,17 +75,26 @@ class DataScheme:
             setattr(self, object_name, index)
         else:
             raise ValueError(f'{object_name} is bigger than the length of dataset')
-    def _update_indice(self, indice, object_name):
+    def _update_indice(self, indice, object_name, type = 'Y'):
         if self.Y_index is None:
             setattr(self, object_name, None)
         else:
-            n_y = self.dataset.element_spec[self.Y_index].shape[-1]
-            if min(indice) < 0:
-                raise ValueError(f'{object_name} cannot be smaller than 0')
-            elif max(indice) >= n_y:
-                raise ValueError(f'{object_name} cannot exceed than length of Y')
-            else:
-                setattr(self, object_name, indice)
+            if type == 'Y':
+                n_y = self.dataset.element_spec[self.Y_index].shape[-1]
+                if min(indice) < 0:
+                    raise ValueError(f'{object_name} cannot be smaller than 0')
+                elif max(indice) >= n_y:
+                    raise ValueError(f'{object_name} cannot exceed than length of Y')
+                else:
+                    setattr(self, object_name, indice)
+            elif type == 'X':
+                n_x = self.dataset.element_spec[self.X_index].shape[-1]
+                if min(indice) < 0:
+                    raise ValueError(f'{object_name} cannot be smaller than 0')
+                elif max(indice) >= n_x:
+                    raise ValueError(f'{object_name} cannot exceed than length of X')
+                else:
+                    setattr(self, object_name, indice)
 
 
 class SVDInstance:
@@ -421,6 +437,11 @@ class LeastSquaredEstimator:
                         val = list(f[i][...])
                     elif mem == 'X_index' or mem == 'Y_index' or mem == 'num_predictors':
                         val = f[i][...]
+                    elif mem == 'x_indice':
+                        try:
+                            val = list(f[i][...])
+                        except:
+                            val = None
                     setattr(data_scheme, mem, val)
                 else:
                     if i == 'intercept' or i == 'normalizer':
@@ -706,6 +727,11 @@ class ElasticNetEstimator:
                         val = list(f[i][...])
                     elif mem == 'X_index' or mem == 'Y_index' or mem == 'num_predictors':
                         val = f[i][...]
+                    elif mem == 'x_indice':
+                        try:
+                            val = list(f[i][...])
+                        except:
+                            val = None
                     setattr(data_scheme, mem, val)
                 else:
                     if i == 'normalizer':
