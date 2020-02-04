@@ -1,0 +1,20 @@
+name: "ptrs-tf"
+output_dir: "../docs"
+include: [".nojekyll"]
+exclude: ["include"]
+navbar:
+  title: "PTRS TF"
+  left:
+    - text: "Home"
+      href: index.html
+  right:
+    - icon: fa-github
+      href: https://github.com/liangyy/ptrs-tf
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    highlight: textmate
+    number_sections: true
+    code_folding: "hide"
+date: "`r paste0('Last update: ', format(Sys.time(), '%b %d, %Y'))`"    
