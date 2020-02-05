@@ -25,8 +25,8 @@ class DataScheme:
         self.num_predictors = self.get_num_predictor()
     def get_data_matrix(self, element, only_x = False):
         x = element[self.X_index]
-        if self.x_index is not None:
-            x = tf.gather(x, self.x_index, axis = 1)
+        if self.x_indice is not None:
+            x = tf.gather(x, self.x_indice, axis = 1)
         y = element[self.Y_index]
         if only_x is False:
             covar = tf.gather(y, self.covariate_indice, axis = 1)
