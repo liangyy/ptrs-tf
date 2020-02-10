@@ -67,6 +67,9 @@ def build_data_scheme(hdf5, scheme_yaml, batch_size = 128, num_epochs = 1, inv_n
         inv_norm_y = inv_norm_y,
         covar_indice = covar_indice
     )
+    tmp_x_indice = None
+    if x_indice is not None:
+        tmp_x_indice = list(x_indice)
     data_scheme = lib_LinearAlgebra.DataScheme(
         dataset = dataset, 
         X_index = mydic['X_index'],

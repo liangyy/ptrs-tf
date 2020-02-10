@@ -89,6 +89,9 @@ class DataScheme:
                     setattr(self, object_name, indice)
             elif type == 'X':
                 n_x = self.dataset.element_spec[self.X_index].shape[-1]
+                if indice is None:
+                    setattr(self, object_name, indice)
+                    return 
                 if min(indice) < 0:
                     raise ValueError(f'{object_name} cannot be smaller than 0')
                 elif max(indice) >= n_x:
