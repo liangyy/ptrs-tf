@@ -46,7 +46,7 @@ class cnnPTRS:
         output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False, name = 'ptrs_dense')(x_)
         output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
         outputy = tf.keras.layers.Add()([output_x_, output_covar_])
-        self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = outputy)
+        self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
     def _mse_loss_tf(self, y, yp):
         return tf.reduce_mean(tf.math.pow(y - yp, 2))
     def _mean_cor_tf(self, y, yp):
@@ -71,16 +71,17 @@ class cnnPTRS:
         return o1, o2, o3
     def _train_one_step(self, optimizer, x, y):
         with tf.GradientTape() as tape:
-            y_ = self.model(x, training = True)
+            y_, _ = self.model(x, training = True)
             loss = self._mse_loss_tf(y, y_)
         grads = tape.gradient(loss, self.model.trainable_variables)
         optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         return loss
-    def predict(self, inputs):    
-        return self.model(inputs, training = False)
+    def predict(self, inputs): 
+        y, _ = self.model(inputs, training = False)   
+        return y
     def predict_x(self, inputs):
-        # TODO
-        pass
+        _, y = self.model(inputs, training = False)   
+        return y
     @tf.function
     def train(self, optimizer, data_scheme, num_epoch, inputs_valid, outcomes_valid):
         step = 0
