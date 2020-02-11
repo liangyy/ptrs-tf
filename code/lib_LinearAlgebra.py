@@ -198,7 +198,7 @@ class FullNormalizer:
             s0 = x[0].shape[1]
             o0 = tf.math.divide_no_nan(tf.math.subtract(x[0], self.mean[:s0]), self.std[:s0])
             o1 = tf.math.divide_no_nan(tf.math.subtract(x[1], self.mean[s0:]), self.std[s0:])
-            return (o0, o1)
+            return [o0, o1]
         else:
             return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
         
