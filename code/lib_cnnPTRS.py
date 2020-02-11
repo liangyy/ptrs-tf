@@ -34,17 +34,17 @@ class cnnPTRS:
                 continue
             else:
                 if counter == 0:
-                    x_ = tf.keras.layers.Conv1D(**layer_dict['conv'])(inputx)
+                    x_ = tf.keras.layers.Conv1D(**layer_dict['conv'], name = f'{layer_name}_conv')(inputx)
                     counter = 1
                 else:
-                    x_ = tf.keras.layers.Conv1D(**layer_dict['conv'])(x_)
+                    x_ = tf.keras.layers.Conv1D(**layer_dict['conv'], name = f'{layer_name}_conv')(x_)
                 if 'maxpool' in layer_dict:
-                    x_ = tf.keras.layers.MaxPool1D(**layer_dict['maxpool'])(x_)
+                    x_ = tf.keras.layers.MaxPool1D(**layer_dict['maxpool'], name = f'{layer_name}_maxpool')(x_)
                 if 'dropout' in layer_dict:
-                    x_ = tf.keras.layers.Dropout(**layer_dict['dropout'])(x_)
+                    x_ = tf.keras.layers.Dropout(**layer_dict['dropout'], name = f'{layer_name}_dropout')(x_)
         x_ = tf.keras.layers.Flatten()(x_)
-        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False)(x_)
-        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear')(covar_)
+        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False, name = 'ptrs_dense')(x_)
+        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
         outputy = tf.keras.layers.Add()([output_x_, output_covar_])
         self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = outputy)
     def _mse_loss_tf(self, y, yp):
