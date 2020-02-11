@@ -33,6 +33,14 @@ class DataScheme:
             x = tf.concat((x, covar), axis = 1)
         y = tf.gather(y, self.outcome_indice, axis = 1) 
         return x, y
+    def get_data_matrix_x_in_list(self, element):
+        x = element[self.X_index]
+        if self.x_indice is not None:
+            x = tf.gather(x, self.x_indice, axis = 1)
+        y = element[self.Y_index]
+        covar = tf.gather(y, self.covariate_indice, axis = 1)
+        y = tf.gather(y, self.outcome_indice, axis = 1) 
+        return [x, covar], y
     def get_indice_x(self):
         '''
         return indice in data matrix that are for x
@@ -141,36 +149,58 @@ class BatchNormalizer:
         return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
         
 class FullNormalizer:
-    def __init__(self, scheme_func, dataset):
-        self.mean, self.std = self._init_mean_and_std(scheme_func, dataset)
-    def _init_mean_and_std(self, scheme_func, dataset):
-        mean = 0
-        n_processed = 0
-        for ele in dataset:
-            x, _ = scheme_func(ele)
-            n_old = 0
-            n_this = x.shape[0]
-            f_old = n_old / (n_old + n_this)
-            # mean_new = mean_old * n_old / (n_old + n_this) + mean_this * n_this / (n_old + n_this)
-            mean = mean * f_old + tf.reduce_mean(x, axis = 0) * (1 - f_old)
-            n_processed += n_this
-        mse = 0
-        n_processed = 0
-        for ele in dataset:
-            x, _ = scheme_func(ele)
-            n_old = 0
-            n_this = x.shape[0]
-            f_old = n_old / (n_old + n_this)
-            # mse_new = mse_old * n_old / (n_old + n_this) + mse_this * n_this / (n_old + n_this)
-            mse_this = tf.reduce_mean(
+    def __init__(self, scheme_func, dataset, tensor = False):
+        self.mean, self.std = self._init_mean_and_std(scheme_func, dataset, tensor = tensor)
+    def _init_mean_and_std(self, scheme_func, dataset, tensor = False):
+        if tensor is False:
+            mean = 0
+            n_processed = 0
+            for ele in dataset:
+                x, _ = scheme_func(ele)
+                if type(x) is list:
+                    x = tf.concat((x[0], x[1]), axis = 1)
+                n_old = 0
+                n_this = x.shape[0]
+                f_old = n_old / (n_old + n_this)
+                # mean_new = mean_old * n_old / (n_old + n_this) + mean_this * n_this / (n_old + n_this)
+                mean = mean * f_old + tf.reduce_mean(x, axis = 0) * (1 - f_old)
+                n_processed += n_this
+            mse = 0
+            n_processed = 0
+            for ele in dataset:
+                x, _ = scheme_func(ele)
+                if type(x) is list:
+                    x = tf.concat((x[0], x[1]), axis = 1)
+                n_old = 0
+                n_this = x.shape[0]
+                f_old = n_old / (n_old + n_this)
+                # mse_new = mse_old * n_old / (n_old + n_this) + mse_this * n_this / (n_old + n_this)
+                mse_this = tf.reduce_mean(
+                    tf.math.squared_difference(x, mean), 
+                    axis = 0
+                )
+                mse = mse * f_old + mse_this * (1 - f_old)
+            std = tf.math.sqrt(mse)
+            return mean, std
+        else:
+            x, _ = scheme_func(dataset)
+            if type(x) is list:
+                x = tf.concat((x[0], x[1]), axis = 1)
+            mean = tf.reduce_mean(x, axis = 0)
+            mse = tf.reduce_mean(
                 tf.math.squared_difference(x, mean), 
                 axis = 0
             )
-            mse = mse * f_old + mse_this * (1 - f_old)
-        std = tf.math.sqrt(mse)
-        return mean, std
+            std = tf.math.sqrt(mse)
+            return mean, std
     def apply(self, x):
-        return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
+        if type(x) is list:
+            s0 = x[0].shape[1]
+            o0 = tf.math.divide_no_nan(tf.math.subtract(x[0], self.mean[:s0]), self.std[:s0])
+            o1 = tf.math.divide_no_nan(tf.math.subtract(x[1], self.mean[s0:]), self.std[s0:])
+            return (o0, o1)
+        else:
+            return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
         
 class _nested_y_DataScheme:
     def __init__(self, dataset = None, X_index = None, Y_index = None, predictor_indice = None, outcome_indice = None, covariate_indice = None):

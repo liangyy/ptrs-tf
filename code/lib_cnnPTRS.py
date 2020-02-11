@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class cnnPTRS:
-    def __init__(self, struct_ordered_dict, num_x, num_outcomes, num_covar):
+    def __init__(self, struct_ordered_dict, data_scheme, normalizer = False):
         '''
         For CNN architecture
         struct_ordered_dict:
@@ -20,9 +20,11 @@ class cnnPTRS:
                       x2 --|
         '''
         # super(cnnPTRS, self).__init__()
-        self.num_x = num_x
-        self.num_outcomes = num_outcomes
-        self.num_covar = num_covar
+        self.normalizer = normalizer
+        self.data_scheme = data_scheme
+        self.num_x = data_scheme.get_num_predictor()
+        self.num_outcomes = data_scheme.get_num_outcome()
+        self.num_covar = data_scheme.get_num_covariate()
         self.__init_cnn_layers(struct_ordered_dict)
     def __init_cnn_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
@@ -83,18 +85,22 @@ class cnnPTRS:
         _, y = self.model(inputs, training = False)   
         return y
     @tf.function
-    def train(self, optimizer, data_scheme, num_epoch, inputs_valid, outcomes_valid):
+    def train(self, optimizer, data_scheme, num_epoch, ele_valid):
         step = 0
         loss = 0.0
         valid_accuracy = 0.0
+        if self.normalizer == True:
+            normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_list, self.data_scheme.dataset)
+            normalizer_valid = FullNormalizer(self.data_scheme.get_data_matrix_x_in_list, ele_valid, tensor = True)
+        inputs_valid, y_valid = data_scheme.get_data_matrix_x_in_list(ele_valid)
+        inputs_valid = normalizer_valid.apply(inputs_valid)
         for ele in dataset.repeat(num_epoch):
-            inputs, y = data_scheme.get_data_matrix(ele)
-            # inputs = [tf.expand_dims(x, axis = 2), y[:, self.num_outcomes:]]
-            # y = y[:, :self.num_outcomes]
+            inputs, y = data_scheme.get_data_matrix_x_in_list(ele)
+            inputs = normalizer.apply(inputs)
             step += 1
-            loss = train_one_step(model, optimizer, inputs, y)
+            loss = self.train_one_step(optimizer, inputs, y)
             if step % 10 == 0:
-                yp = predict(model, inputs_valid)
+                yp = self.predict(inputs_valid)
                 valid_accuracy = self._mean_cor_tf(yp, y_valid)
                 tf.print('Step', step, ': loss', loss, '; validation-accuracy:', valid_accuracy)
         return step, loss, valid_accuracy
