@@ -43,10 +43,61 @@ class cnnPTRS:
                 if 'dropout' in layer_dict:
                     x_ = tf.keras.layers.Dropout(**layer_dict['dropout'])(x_)
         x_ = tf.keras.layers.Flatten()(x_)
-        x_n_covar_ = tf.keras.layers.concatenate([x_, covar_])
-        outputy = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear')(x_n_covar_)
+        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False)(x_)
+        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear')(covar_)
+        outputy = tf.keras.layers.Add()([output_x_, output_covar_])
         self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = outputy)
-        
+    def _mse_loss_tf(self, y, yp):
+        return tf.reduce_mean(tf.math.pow(y - yp, 2))
+    def _mean_cor_tf(self, y, yp):
+        return tf.reduce_mean(self._cor_tf(y, yp))
+    def _cor_tf(self, y, yp):
+        '''
+        cov_xy / sqrt(var_x * var_y)
+        '''
+        o1, o2, o3 = self.__var_x_y_all_tf(y, yp)
+        return tf.divide(o3, tf.sqrt( tf.multiply(o1, o2) ))
+    def __var_x_y_all_tf(self, x, y):
+        '''
+        var_x_y = mean( ( x - mean(x) ) * ( y - mean(y) ) ) 
+        '''
+        mx = tf.reduce_mean(x, axis = 0)
+        my = tf.reduce_mean(y, axis = 0)
+        diff_x_mx = x - mx
+        diff_y_my = y - my
+        o1 = tf.reduce_mean( tf.multiply(diff_x_mx, diff_x_mx), axis = 0 )
+        o2 = tf.reduce_mean( tf.multiply(diff_y_my, diff_y_my), axis = 0 )
+        o3 = tf.reduce_mean( tf.multiply(diff_x_mx, diff_y_my), axis = 0 )
+        return o1, o2, o3
+    def _train_one_step(self, optimizer, x, y):
+        with tf.GradientTape() as tape:
+            y_ = self.model(x, training = True)
+            loss = self._mse_loss_tf(y, y_)
+        grads = tape.gradient(loss, self.model.trainable_variables)
+        optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+        return loss
+    def predict(self, inputs):    
+        return self.model(inputs, training = False)
+    def predict_x(self, inputs):
+        # TODO
+        pass
+    @tf.function
+    def train(self, optimizer, data_scheme, num_epoch, inputs_valid, outcomes_valid):
+        step = 0
+        loss = 0.0
+        valid_accuracy = 0.0
+        for ele in dataset.repeat(num_epoch):
+            inputs, y = data_scheme.get_data_matrix(ele)
+            # inputs = [tf.expand_dims(x, axis = 2), y[:, self.num_outcomes:]]
+            # y = y[:, :self.num_outcomes]
+            step += 1
+            loss = train_one_step(model, optimizer, inputs, y)
+            if step % 10 == 0:
+                yp = predict(model, inputs_valid)
+                valid_accuracy = self._mean_cor_tf(yp, y_valid)
+                tf.print('Step', step, ': loss', loss, '; validation-accuracy:', valid_accuracy)
+        return step, loss, valid_accuracy
+    
 
 
 # class cnnPTRS(Model):
