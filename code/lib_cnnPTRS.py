@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-class cnnPTRS(Model):
+class cnnPTRS:
     def __init__(self, struct_ordered_dict, num_x, num_outcomes, num_covar):
         '''
         For CNN architecture
@@ -19,7 +19,7 @@ class cnnPTRS(Model):
                            +-- linear predictor -> y
                       x2 --|
         '''
-        super(cnnPTRS, self).__init__()
+        # super(cnnPTRS, self).__init__()
         self.num_x = num_x
         self.num_outcomes = num_outcomes
         self.num_covar = num_covar
