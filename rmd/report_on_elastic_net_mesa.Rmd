@@ -1,0 +1,158 @@
+---
+title: "Report on Elastic net based PTRS (MESA)"
+---
+
+```{r setup}
+library(dplyr)
+library(data.table)
+library(pander)
+library(ggplot2)
+panderOptions('table.split.table', Inf)
+theme_set(theme_bw(base_size=12))
+source('https://gist.githubusercontent.com/liangyy/43912b3ecab5d10c89f9d4b2669871c9/raw/8151c6fe70e3d4ee43d9ce340ecc0eb65172e616/my_ggplot_theme.R')
+th$panel.border = element_rect(colour = th$axis.line$colour)
+blood_traits = c('wbc', 'rbc', 'platelet', 'lymphocyte', 'monocyte', 'neutrophil', 'eosinophil', 'basophil')
+color_mixer = c('African' = '#E74C3C', 'British_test' = '#28B463', 'British_validation' = '#D4AC0D', 'Chinese' = '#3498DB', 'Indian' = '#9B59B6', 'British_insample' = '#AAB7B8')
+my_parser = function(x) {
+  as.numeric(stringr::str_remove(x, 'pval_'))
+}
+source('https://raw.githubusercontent.com/liangyy/ptrs-ukb/master/code/rlib_doc.R?token=AC7RPMKFRGMEYNIAT5QTDTK6IRTOM')
+```
+
+# Overview
+
+We trained PTRS models using the genes occurring in both MESA CAU and MESA AFHI. 
+The EN PTRS models were trained using EUR individuals with MESA CAU. 
+The EN PTRS in all populations was calculated using MESA CAU and MESA AFHI respectively.
+
+# Load data
+
+```{r data}
+df_cau = read.table('~/Desktop/tmp/ptrs-tf/from_nucleus/partial_r2-elastic_net_MESA_CAU_British_in_CAU.tsv', header = T, sep = '\t', stringsAsFactors = F)
+df_afhi = read.table('~/Desktop/tmp/ptrs-tf/from_nucleus/partial_r2-elastic_net_MESA_CAU_British_in_AFHI.tsv', header = T, sep = '\t', stringsAsFactors = F)
+df_en = rbind(df_cau %>% mutate(pred_expr = 'CAU'), df_afhi %>% mutate(pred_expr = 'AFHI')) %>% arrange(desc(lambda))
+df_prs = read.table('~/Desktop/tmp/ptrs-tf/from_nucleus/partial_r2-prs.subset1_British.tsv', header = T, sep = '\t', stringsAsFactors = F)
+
+df_prs$sample[df_prs$sample == 'British-test-1'] = 'British_test'
+df_prs$sample[df_prs$sample == 'British-validation-1'] = 'British_validation'
+df_prs = df_prs %>% rename(prs_cutoff = ptrs_cutoff)
+df_prs = df_prs %>% arrange(desc(-prs_cutoff))
+```
+
+# EN PTRS along regularization path
+
+```{r en, fig.width=5, fig.height=10}
+df_cau %>% filter(trait %in% blood_traits, sample != 'British_insample') %>% ggplot() + geom_path(aes(x = log(lambda), y = partial_r2, color = sample)) + facet_grid(trait~alpha, scales = 'free_y') + th + 
+  theme(legend.position = 'bottom') + 
+  scale_color_manual(values = color_mixer) + 
+  ggtitle('EN PTRS (CAU) Blood traits')
+df_cau %>% filter(!trait %in% blood_traits, sample != 'British_insample') %>% ggplot() + geom_path(aes(x = log(lambda), y = partial_r2, color = sample)) + facet_grid(trait~alpha, scales = 'free_y') + th + 
+  theme(legend.position = 'bottom') + 
+  scale_color_manual(values = color_mixer) + 
+  ggtitle('EN PTRS (CAU) Non-blood traits')
+```
+
+```{r en2, fig.width=5, fig.height=10}
+df_afhi %>% filter(trait %in% blood_traits, sample != 'British_insample') %>% ggplot() + geom_path(aes(x = log(lambda), y = partial_r2, color = sample)) + facet_grid(trait~alpha, scales = 'free_y') + th + 
+  theme(legend.position = 'bottom') + 
+  scale_color_manual(values = color_mixer) + 
+  ggtitle('EN PTRS (CAU) Blood traits')
+df_afhi %>% filter(!trait %in% blood_traits, sample != 'British_insample') %>% ggplot() + geom_path(aes(x = log(lambda), y = partial_r2, color = sample)) + facet_grid(trait~alpha, scales = 'free_y') + th + 
+  theme(legend.position = 'bottom') + 
+  scale_color_manual(values = color_mixer) + 
+  ggtitle('EN PTRS (CAU) Non-blood traits')
+```
+
+# LD-clump PRS
+
+```{r prs, fig.width=6, fig.height=4}
+df_prs %>% filter(trait %in% blood_traits) %>% ggplot() + geom_path(aes(x = log(prs_cutoff), y = partial_r2, color = sample)) + facet_wrap(~trait, scales = 'free_y') + th + 
+  theme(legend.position = 'bottom') + 
+  scale_color_manual(values = color_mixer) + 
+  ggtitle('PRS Blood traits')
+df_prs %>% filter(!trait %in% blood_traits, sample != 'British_insample') %>% ggplot() + geom_path(aes(x = log(prs_cutoff), y = partial_r2, color = sample)) + facet_wrap(~trait, scales = 'free_y') + th + 
+  theme(legend.position = 'bottom') + 
+  scale_color_manual(values = color_mixer) + 
+  ggtitle('PRS Non-blood traits')
+```
+
+
+# Best EN PTRS, and LD-clump PRS
+
+```{r best}
+best_en = df_en %>% group_by(trait, sample) %>% summarize(r2_max = max(partial_r2, na.rm = T)) %>% ungroup()
+best_cau = df_cau %>% group_by(trait, sample) %>% summarize(r2_max = max(partial_r2, na.rm = T)) %>% ungroup()
+best_afhi = df_afhi %>% group_by(trait, sample) %>% summarize(r2_max = max(partial_r2, na.rm = T)) %>% ungroup()
+best_prs = df_prs %>% group_by(trait, sample) %>% summarize(r2_max = max(partial_r2, na.rm = T)) %>% ungroup()
+```
+
+## EN PTRS CAU vs AFHI
+
+```{r best_vs3, fig.width=6, fig.height=4}
+merge = inner_join(best_cau, best_afhi, by = c('sample', 'trait'), suffix = c('.cau', '.afhi'))
+merge %>% ggplot() + geom_point(aes(x = r2_max.cau, y = r2_max.afhi)) + facet_wrap(~sample, scales = 'free') + geom_abline(intercept = 0, slope = 1) + th
+```
+
+## EN PTRS vs. PRS
+
+```{r best_vs2, fig.width=6, fig.height=4}
+merge = inner_join(best_en, best_prs, by = c('sample', 'trait'), suffix = c('.en', '.prs'))
+merge %>% ggplot() + geom_point(aes(x = r2_max.prs, y = r2_max.en)) + facet_wrap(~sample, scales = 'free') + geom_abline(intercept = 0, slope = 1) + th
+```
+
+
+# Heritability vs PVE in British
+
+```{r h2_pve, fig.width=4, fig.height=4}
+h2 = readRDS('~/Documents/repo/github/ptrs-ukb/analysis_output/hsq_neale_lab.rds')
+pve = readRDS('~/Documents/repo/github/ptrs-ukb/analysis_output/regulability_mesa_and_ctimp.rds')
+pve = pve %>% filter(model == 'CAU')
+pve$population[pve$population == 'British'] = 'British_test'
+# pve$population[pve$population == 'British-validation-1'] = 'British_validation'
+merge = inner_join(h2 %>% select(trait, h2_observed, h2_observed_se), pve %>% filter(population == 'British_test'), by = "trait")
+ratio = delta_mtd(merge$h_sq, merge$h_sq_se^2, merge$h2_observed, merge$h2_observed_se^2)
+merge = merge %>% mutate(ratio_mean = ratio$m, ratio_se = sqrt(ratio$v))
+ratio_fe = meta_fixed(merge$ratio_mean, merge$ratio_se)
+as.data.frame(ratio_fe, col.names = c('ratio_mean', 'ratio_se')) %>% pander
+merge %>% ggplot() + 
+  geom_point(aes(x = h2_observed, y = h_sq)) + 
+  geom_errorbar(aes(x = h2_observed, ymin = h_sq - 1.96 * h_sq_se, ymax = h_sq + 1.96 * h_sq_se)) + 
+  geom_errorbarh(aes(xmin = h2_observed - 1.96 * h2_observed_se, xmax = h2_observed + 1.96 * h2_observed_se, y = h_sq)) +
+  th +
+  geom_abline(intercept = 0, slope = ratio_fe$m + 1.96 * ratio_fe$se) + 
+  geom_abline(intercept = 0, slope = ratio_fe$m - 1.96 * ratio_fe$se)
+```
+
+**Take-away**: 
+PVE is about 16% of heritability.
+
+# PVE vs PTRS
+
+```{r pve_ptrs, fig.width=4, fig.height=4}
+merge = inner_join(pve, 
+                   rbind(
+                     best_cau %>% mutate(type = 'CAU'),
+                     best_afhi %>% mutate(type = 'AFHI')
+                   ), by = c('trait', 'population' = 'sample'))
+merge %>% ggplot() + geom_point(aes(x = h_sq, y = r2_max, color = type)) + facet_wrap(~population) + th + ggtitle('PVE vs PTRS') + geom_abline(slope = 1, intercept = 0) + theme(legend.position = 'bottom')
+```
+
+# Transferability
+
+```{r trans}
+trans_en = best_en %>% left_join(best_en %>% filter(sample == 'British_validation'), by = c('trait'), suffix = c('', '.ref')) %>% mutate(transferability = r2_max / r2_max.ref)
+trans_cau = best_cau %>% left_join(best_cau %>% filter(sample == 'British_validation'), by = c('trait'), suffix = c('', '.ref')) %>% mutate(transferability = r2_max / r2_max.ref)
+trans_afhi = best_afhi %>% left_join(best_afhi %>% filter(sample == 'British_validation'), by = c('trait'), suffix = c('', '.ref')) %>% mutate(transferability = r2_max / r2_max.ref)
+trans_prs = best_prs %>% left_join(best_prs %>% filter(sample == 'British_validation'), by = c('trait'), suffix = c('', '.ref')) %>% mutate(transferability = r2_max / r2_max.ref)
+rbind(
+  trans_en %>% mutate(type = 'EN PTRS (combined)'),
+  trans_cau %>% mutate(type = 'EN PTRS (CAU)'),
+  trans_afhi %>% mutate(type = 'EN PTRS (AFHI)'),
+  trans_prs %>% mutate(type = 'PRS')
+) %>% filter(sample != 'British_insample') %>%
+  ggplot() + geom_violin(aes(x = sample, y = transferability, color = type), position = position_dodge(width = 0.5)) + geom_boxplot(aes(x = sample, y = transferability, color = type), position = position_dodge(width = 0.5), width = 0.1) + th + theme(legend.position = 'bottom')
+  
+```
+
+**Take-away**: 
+By using EN, African, Chinese, and Indian do not benefit (as comparing to S-PrediXcan approach) more than British. So that EN PTRS has lower transferability than S-PrediXcan PTRS. 

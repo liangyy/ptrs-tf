@@ -1,5 +1,12 @@
 import numpy as np
+import yaml
+import yamlloader
 
+def load_ordered_yaml(filename):
+    with open(filename) as yaml_file:
+        data = yaml.load(yaml_file, Loader = yamlloader.ordereddict.CLoader)
+    return data
+                     
 def intersect_indice(set1, set2):
     '''
     Return the indices of element in intersect of set1 and set2.
