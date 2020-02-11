@@ -19,13 +19,14 @@ class cnnPTRS(Model):
                            +-- linear predictor -> y
                       x2 --|
         '''
+        super(cnnPTRS, self).__init__()
         self.num_x = num_x
         self.num_outcomes = num_outcomes
         self.num_covar = num_covar
         self.__init_cnn_layers(struct_ordered_dict)
     def __init_cnn_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
-        covar_ = tf.keras.Input(shape = (self.num_covar, 1))
+        covar_ = tf.keras.Input(shape = (self.num_covar))
         counter = 0
         for layer_name in struct_ordered_dict.keys():
             layer_dict = struct_ordered_dict[layer_name]
@@ -44,7 +45,7 @@ class cnnPTRS(Model):
         x_ = tf.keras.layers.Flatten()(x_)
         x_n_covar_ = tf.keras.layers.concatenate([x_, covar_])
         outputy = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear')(x_n_covar_)
-        self.model = tf.keras.Model(inputs = inputx, outputs = outputy)
+        self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = outputy)
         
 
 
