@@ -58,9 +58,9 @@ class cnnPTRS:
         '''
         cov_xy / sqrt(var_x * var_y)
         '''
-        o1, o2, o3 = self.__var_x_y_all_tf(y, yp)
+        o1, o2, o3 = self._var_x_y_all_tf(y, yp)
         return tf.divide(o3, tf.sqrt( tf.multiply(o1, o2) ))
-    def __var_x_y_all_tf(self, x, y):
+    def _var_x_y_all_tf(self, x, y):
         '''
         var_x_y = mean( ( x - mean(x) ) * ( y - mean(y) ) ) 
         '''
@@ -80,10 +80,10 @@ class cnnPTRS:
         grads = tape.gradient(loss, self.model.trainable_variables)
         optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         return loss
-    def __predict(self, inputs): 
+    def _predict(self, inputs): 
         y, _ = self.model(inputs, training = False)   
         return y
-    def __predict_x(self, inputs):
+    def _predict_x(self, inputs):
         _, y = self.model(inputs, training = False)   
         return y
     def __ele_unpack(self, ele):
@@ -93,11 +93,11 @@ class cnnPTRS:
             inputs = normalizer_.apply(inputs)
         return inputs, y
     def predict(self, ele):
-        inputs, _ = self.__ele_unpack(ele)
-        return self.__predict(inputs)
+        inputs, y = self.__ele_unpack(ele)
+        return self._predict(inputs), y
     def predict_x(self, ele):
-        inputs, _ = self.__ele_unpack(ele)
-        return self.__predict_x(inputs)    
+        inputs, y = self.__ele_unpack(ele)
+        return self._predict_x(inputs), y   
     def prep_train(self, ele_valid):
         if self.normalizer == True:
             normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
@@ -125,7 +125,7 @@ class cnnPTRS:
                 step += 1
                 loss = self._train_one_step(optimizer, inputs, y)
                 if step % 10 == 0:
-                    yp = self.__predict(inputs_valid)
+                    yp = self._predict(inputs_valid)
                     valid_accuracy = self._mean_cor_tf(yp, y_valid)
                     tf.print('Step', step, ': loss', loss, '; validation-accuracy:', valid_accuracy)
             return step, loss, valid_accuracy
