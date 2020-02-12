@@ -1,4 +1,5 @@
 import tensorflow as tf
+from lib_LinearAlgebra import FullNormalizer
 
 class cnnPTRS:
     def __init__(self, struct_ordered_dict, data_scheme, normalizer = False):
@@ -71,6 +72,7 @@ class cnnPTRS:
         o2 = tf.reduce_mean( tf.multiply(diff_y_my, diff_y_my), axis = 0 )
         o3 = tf.reduce_mean( tf.multiply(diff_x_mx, diff_y_my), axis = 0 )
         return o1, o2, o3
+    # @tf.function
     def _train_one_step(self, optimizer, x, y):
         with tf.GradientTape() as tape:
             y_, _ = self.model(x, training = True)
@@ -84,26 +86,37 @@ class cnnPTRS:
     def predict_x(self, inputs):
         _, y = self.model(inputs, training = False)   
         return y
-    @tf.function
-    def train(self, optimizer, data_scheme, num_epoch, ele_valid):
-        step = 0
-        loss = 0.0
-        valid_accuracy = 0.0
+    def prep_train(self, ele_valid):
         if self.normalizer == True:
-            normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_list, self.data_scheme.dataset)
-            normalizer_valid = FullNormalizer(self.data_scheme.get_data_matrix_x_in_list, ele_valid, tensor = True)
-        inputs_valid, y_valid = data_scheme.get_data_matrix_x_in_list(ele_valid)
-        inputs_valid = normalizer_valid.apply(inputs_valid)
-        for ele in dataset.repeat(num_epoch):
-            inputs, y = data_scheme.get_data_matrix_x_in_list(ele)
-            inputs = normalizer.apply(inputs)
-            step += 1
-            loss = self.train_one_step(optimizer, inputs, y)
-            if step % 10 == 0:
-                yp = self.predict(inputs_valid)
-                valid_accuracy = self._mean_cor_tf(yp, y_valid)
-                tf.print('Step', step, ': loss', loss, '; validation-accuracy:', valid_accuracy)
-        return step, loss, valid_accuracy
+            normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
+            normalizer_valid = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele_valid, tensor = True)
+            return normalizer, normalizer_valid
+        else:
+            return None, None
+    def train_func(self):
+        @tf.function
+        def train(self, optimizer, num_epoch, ele_valid, normalizer = None, normalizer_valid = None):
+            step = 0
+            loss = 0.0
+            valid_accuracy = 0.0
+            # if self.normalizer == True:
+            #     normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
+            #     normalizer_valid = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele_valid, tensor = True)
+            inputs_valid, y_valid = self.data_scheme.get_data_matrix_x_in_cnn(ele_valid)
+            if self.normalizer == True:
+                inputs_valid = normalizer_valid.apply(inputs_valid)
+            for ele in self.data_scheme.dataset.repeat(num_epoch):
+                inputs, y = self.data_scheme.get_data_matrix_x_in_cnn(ele)
+                if self.normalizer == True:
+                    inputs = normalizer.apply(inputs)
+                step += 1
+                loss = self._train_one_step(optimizer, inputs, y)
+                if step % 10 == 0:
+                    yp = self.predict(inputs_valid)
+                    valid_accuracy = self._mean_cor_tf(yp, y_valid)
+                    tf.print('Step', step, ': loss', loss, '; validation-accuracy:', valid_accuracy)
+            return step, loss, valid_accuracy
+        return train
     
 
 

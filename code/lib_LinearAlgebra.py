@@ -33,14 +33,14 @@ class DataScheme:
             x = tf.concat((x, covar), axis = 1)
         y = tf.gather(y, self.outcome_indice, axis = 1) 
         return x, y
-    def get_data_matrix_x_in_list(self, element):
+    def get_data_matrix_x_in_cnn(self, element):
         x = element[self.X_index]
         if self.x_indice is not None:
             x = tf.gather(x, self.x_indice, axis = 1)
         y = element[self.Y_index]
         covar = tf.gather(y, self.covariate_indice, axis = 1)
         y = tf.gather(y, self.outcome_indice, axis = 1) 
-        return [x, covar], y
+        return [tf.expand_dims(x, axis = 2), covar], y
     def get_indice_x(self):
         '''
         return indice in data matrix that are for x
@@ -157,8 +157,9 @@ class FullNormalizer:
             n_processed = 0
             for ele in dataset:
                 x, _ = scheme_func(ele)
+                # tf.print(type(x) is list)
                 if type(x) is list:
-                    x = tf.concat((x[0], x[1]), axis = 1)
+                    x = tf.concat((x[0][:, :, 0], x[1]), axis = 1)
                 n_old = 0
                 n_this = x.shape[0]
                 f_old = n_old / (n_old + n_this)
@@ -170,7 +171,7 @@ class FullNormalizer:
             for ele in dataset:
                 x, _ = scheme_func(ele)
                 if type(x) is list:
-                    x = tf.concat((x[0], x[1]), axis = 1)
+                    x = tf.concat((x[0][:, :, 0], x[1]), axis = 1)
                 n_old = 0
                 n_this = x.shape[0]
                 f_old = n_old / (n_old + n_this)
@@ -185,7 +186,7 @@ class FullNormalizer:
         else:
             x, _ = scheme_func(dataset)
             if type(x) is list:
-                x = tf.concat((x[0], x[1]), axis = 1)
+                x = tf.concat((x[0][:, :, 0], x[1]), axis = 1)
             mean = tf.reduce_mean(x, axis = 0)
             mse = tf.reduce_mean(
                 tf.math.squared_difference(x, mean), 
@@ -195,10 +196,11 @@ class FullNormalizer:
             return mean, std
     def apply(self, x):
         if type(x) is list:
+            x[0] = x[0][:, :, 0]
             s0 = x[0].shape[1]
             o0 = tf.math.divide_no_nan(tf.math.subtract(x[0], self.mean[:s0]), self.std[:s0])
             o1 = tf.math.divide_no_nan(tf.math.subtract(x[1], self.mean[s0:]), self.std[s0:])
-            return [o0, o1]
+            return [tf.expand_dims(o0, axis = 2), o1]
         else:
             return tf.math.divide_no_nan(tf.math.subtract(x, self.mean), self.std)
         
