@@ -80,12 +80,24 @@ class cnnPTRS:
         grads = tape.gradient(loss, self.model.trainable_variables)
         optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         return loss
-    def predict(self, inputs): 
+    def __predict(self, inputs): 
         y, _ = self.model(inputs, training = False)   
         return y
-    def predict_x(self, inputs):
+    def __predict_x(self, inputs):
         _, y = self.model(inputs, training = False)   
         return y
+    def __ele_unpack(self, ele):
+        inputs, y = self.data_scheme.get_data_matrix_x_in_cnn(ele)
+        if self.normalizer == True:
+            normalizer_ = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele, tensor = True)
+            inputs = normalizer_.apply(inputs)
+        return inputs, y
+    def predict(self, ele):
+        inputs, _ = self.__ele_unpack(ele)
+        return self.__predict(inputs)
+    def predict_x(self, ele):
+        inputs, _ = self.__ele_unpack(ele)
+        return self.__predict_x(inputs)    
     def prep_train(self, ele_valid):
         if self.normalizer == True:
             normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
@@ -99,6 +111,7 @@ class cnnPTRS:
             step = 0
             loss = 0.0
             valid_accuracy = 0.0
+            # work-around so that tf.function decoration works (.shape is not working in current tf2 version)
             # if self.normalizer == True:
             #     normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
             #     normalizer_valid = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele_valid, tensor = True)
@@ -112,7 +125,7 @@ class cnnPTRS:
                 step += 1
                 loss = self._train_one_step(optimizer, inputs, y)
                 if step % 10 == 0:
-                    yp = self.predict(inputs_valid)
+                    yp = self.__predict(inputs_valid)
                     valid_accuracy = self._mean_cor_tf(yp, y_valid)
                     tf.print('Step', step, ': loss', loss, '; validation-accuracy:', valid_accuracy)
             return step, loss, valid_accuracy
