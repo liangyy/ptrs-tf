@@ -26,3 +26,7 @@ def _extract_subset_indice_with_sorting(extract_from, target_set):
     in_idx_in_sorted = np.where(np.isin(extract_from[sorted_idx], target_set))[0]
     sorted_idx_with_in = sorted_idx[in_idx_in_sorted]
     return sorted_idx_with_in
+def get_inputs_and_y(dataset, n_outcome, block = 100000000):
+    for inputs, y in dataset.unbatch().batch(block):
+        break
+    return inputs, y

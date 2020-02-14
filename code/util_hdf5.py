@@ -76,7 +76,7 @@ def build_data_scheme(hdf5, scheme_yaml, batch_size = 128, num_epochs = 1, inv_n
         Y_index = mydic['Y_index'],
         outcome_indice = list(outcome_indice), 
         covariate_indice = list(covar_indice),
-        x_indice = list(x_indice)
+        x_indice = tmp_x_indice 
     )
     return data_scheme, sample_size
     
