@@ -1,8 +1,9 @@
 import tensorflow as tf
 from lib_LinearAlgebra import FullNormalizer
+import sys
 
 class cnnPTRS:
-    def __init__(self, struct_ordered_dict, data_scheme, normalizer = False):
+    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False):
         '''
         For CNN architecture
         struct_ordered_dict:
@@ -19,14 +20,18 @@ class cnnPTRS:
             x1 -CNN-> m1 --|
                            +-- linear predictor -> y
                       x2 --|
+        temp_path: to save best model during training
         '''
         # super(cnnPTRS, self).__init__()
         self.normalizer = normalizer
         self.data_scheme = data_scheme
-        self.num_x = data_scheme.get_num_predictor()
-        self.num_outcomes = data_scheme.get_num_outcome()
-        self.num_covar = data_scheme.get_num_covariate()
+        self.temp_path = temp_path
+        self.__init_from_data_scheme()
         self.__init_cnn_layers(struct_ordered_dict)
+    def __init_from_data_scheme(self):
+        self.num_x = self.data_scheme.get_num_predictor()
+        self.num_outcomes = self.data_scheme.get_num_outcome()
+        self.num_covar = self.data_scheme.get_num_covariate()
     def __init_cnn_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
         covar_ = tf.keras.Input(shape = (self.num_covar))
@@ -111,12 +116,13 @@ class cnnPTRS:
         else:
             v = var_list
         @tf.function
-        def train(self, optimizer, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None):
+        def train(self, optimizer, checker, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None):
             step = 0
             loss = 0.0
             valid_accuracy = 0.0
             valid_accuracy_x = 0.0
             insample_accuracy_x = 0.0
+            best_v_accuracy_x = 0.0
             # work-around so that tf.function decoration works (.shape is not working in current tf2 version)
             # if self.normalizer == True:
             #     normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
@@ -128,25 +134,87 @@ class cnnPTRS:
                 inputs_insample, y_insample = self.data_scheme.get_data_matrix_x_in_cnn(ele_insample)
                 if self.normalizer == True:
                     inputs_insample = normalizer_valid.apply(inputs_insample)
-
-            for ele in self.data_scheme.dataset.repeat(num_epoch):
-                inputs, y = self.data_scheme.get_data_matrix_x_in_cnn(ele)
-                if self.normalizer == True:
-                    inputs = normalizer.apply(inputs)
-                step += 1
-                loss = self._train_one_step(optimizer, inputs, y, var_list)
-                if step % 10 == 0:
-                    yp = self._predict(inputs_valid)
-                    ypx = self._predict_x(inputs_valid)
-                    valid_accuracy = self._mean_cor_tf(yp, y_valid)
-                    valid_accuracy_x = self._mean_cor_tf(ypx, y_valid)
-                    if ele_insample is not None:
-                        ypx_in = self._predict_x(inputs_insample)
-                        insample_accuracy_x = self._mean_cor_tf(ypx_in, y_insample)
-                    tf.print('Step', step, ': loss', loss, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x)
+            for epoch in range(num_epoch):
+                for ele in self.data_scheme.dataset:
+                    inputs, y = self.data_scheme.get_data_matrix_x_in_cnn(ele)
+                    if self.normalizer == True:
+                        inputs = normalizer.apply(inputs)
+                    step += 1
+                    loss = self._train_one_step(optimizer, inputs, y, var_list)
+                    
+                yp = self._predict(inputs_valid)
+                ypx = self._predict_x(inputs_valid)
+                valid_accuracy = self._mean_cor_tf(yp, y_valid)
+                valid_accuracy_x = self._mean_cor_tf(ypx, y_valid)
+                if ele_insample is not None:
+                    ypx_in = self._predict_x(inputs_insample)
+                    insample_accuracy_x = self._mean_cor_tf(ypx_in, y_insample)
+                tf.print('@@@@ Epoch', epoch, ': loss', loss, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x, output_stream = sys.stderr)
+                if best_v_accuracy_x < valid_accuracy_x:
+                    tf.print('@@@@ Saving model after current epoch', epoch)
+                    best_v_accuracy_x = valid_accuracy_x
+                    outfile = self.temp_path
+                    self.model.save(self.temp_path)
             return step, loss, valid_accuracy, valid_accuracy_x
         return train
-    
+    def minimal_save(self, filename, save_curr = True):
+        '''
+        If save_curr is False, save the model from self.temp_path
+        Perform minimal save, which saves the minimal things needed for prediction. 
+        They are: 
+        1) CNN model; 
+        2) all members but dataset in data_scheme;
+        3) normalizer value
+        '''
+        save_dic = {}
+        save_dic['keras_model_path'] = 'keras-model-save' + filename
+        if save_curr is True:
+            self.model.save(save_dic['keras_model_path'])
+        else:
+            model_ = tf.keras.models.load_model(self.temp_path)
+            model_.save(save_dic['keras_model_path'])
+            del model_
+        save_dic['normalizer'] = self.normalizer * 1
+        for i in self.data_scheme.__dict__.keys():
+            if i != 'dataset':
+                save_dic['data_scheme.' + i] = getattr(self.data_scheme, i)
+            else:
+                save_dic['data_scheme.' + i] = b'save_mode'
+        with h5py.File(filename, 'w') as f:
+            for i in save_dic.keys():
+                print('Saving {}'.format(i))
+                f.create_dataset(i, data = save_dic[i])
+    def minimal_load(self, filename):
+        '''
+        Load HDF5 generated by `minimal_save`.
+        Note that it may not be a perfect load.
+        '''
+        with h5py.File(filename, 'r') as f:
+            data_scheme = DataScheme()
+            for i in f.keys():
+                if 'data_scheme.' in i:
+                    mem = re.sub('data_scheme.', '', i)
+                    if mem == 'outcome_indice' or mem == 'covariate_indice':
+                        val = list(f[i][...])
+                    elif mem == 'X_index' or mem == 'Y_index' or mem == 'num_predictors':
+                        val = f[i][...]
+                    elif mem == 'x_indice':
+                        try:
+                            val = list(f[i][...])
+                        except:
+                            val = None
+                    setattr(data_scheme, mem, val)
+                else:
+                    if i == 'normalizer':
+                        if f[i][...] == 1:
+                            setattr(self, i, True)
+                        elif f[i][...] == 0:
+                            setattr(self, i, False)
+                    elif i == 'keras_model_path':
+                        self.model = tf.keras.models.load_model(f[i][...])
+        self.data_scheme = data_scheme
+        self.__init_cnn_layers(struct_ordered_dict)
+                      
 
 
 # class cnnPTRS(Model):

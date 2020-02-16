@@ -68,6 +68,7 @@ def load_hdf5_as_dataset(filename_list, dataset_list, batch_size, num_epochs, sh
     if shuffle is not None:
         dataset = dataset.shuffle(shuffle)
     dataset = dataset.batch(batch_size).repeat(num_epochs)
+    dataset = dataset.prefetch(1)
     return dataset, size
 def load_hdf5_as_tensor(filename, dataset_list):
     test_data = tfio.IOTensor.from_hdf5(filename_list)
