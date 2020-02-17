@@ -116,7 +116,7 @@ class cnnPTRS:
         else:
             v = var_list
         @tf.function
-        def train(self, optimizer, checker, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None):
+        def train(self, optimizer, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None):
             step = 0
             loss = 0.0
             valid_accuracy = 0.0
@@ -134,6 +134,8 @@ class cnnPTRS:
                 inputs_insample, y_insample = self.data_scheme.get_data_matrix_x_in_cnn(ele_insample)
                 if self.normalizer == True:
                     inputs_insample = normalizer_valid.apply(inputs_insample)
+            ypx = self._predict_x(inputs_valid)
+            best_v_accuracy_x = self._mean_cor_tf(ypx, y_valid)
             for epoch in range(num_epoch):
                 for ele in self.data_scheme.dataset:
                     inputs, y = self.data_scheme.get_data_matrix_x_in_cnn(ele)
@@ -153,10 +155,12 @@ class cnnPTRS:
                 if best_v_accuracy_x < valid_accuracy_x:
                     tf.print('@@@@ Saving model after current epoch', epoch)
                     best_v_accuracy_x = valid_accuracy_x
-                    outfile = self.temp_path
-                    self.model.save(self.temp_path)
+                    # outfile = self.temp_path
+                    tf.py_function(self._model_save, [], [])
             return step, loss, valid_accuracy, valid_accuracy_x
         return train
+    def _model_save(self):
+        self.model.save(self.temp_path)
     def minimal_save(self, filename, save_curr = True):
         '''
         If save_curr is False, save the model from self.temp_path
