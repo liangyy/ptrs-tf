@@ -18,6 +18,16 @@ class kerasPTRS:
         self.num_x = self.data_scheme.get_num_predictor()
         self.num_outcomes = self.data_scheme.get_num_outcome()
         self.num_covar = self.data_scheme.get_num_covariate()
+    def _build_flex_linear_predictor(self, name_prefix, input_x, use_bias = False):
+        o_x = []
+        for i in range(self.num_outcomes):
+            o_x.append(tf.keras.layers.Dense(1, activation = 'linear', use_bias = use_bias, name = f'{name_prefix}_{i}')(input_x))
+        return tf.keras.concatenate(o_x, axis = 0)
+    def _build_head(self, input_x, input_covar):
+        output_x_ = _build_flex_linear_predictor('ptrs_dense', input_x = input_x, use_bias = False)
+        output_covar_ = _build_flex_linear_predictor('covar_dense', input_x = input_covar, use_bias = True)
+        outputy = tf.keras.layers.Add()([output_x_, output_covar_])
+        return outputy, output_x_
     def _mse_loss_tf(self, y, yp):
         return tf.reduce_mean(tf.math.pow(y - yp, 2))
     def _mean_cor_tf(self, y, yp):
@@ -232,9 +242,7 @@ class mlpPTRS(kerasPTRS):
             x_ = tf.keras.layers.Flatten()(x_)
         else: 
             x_ = tf.keras.layers.Flatten()(inputx)
-        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False, name = 'ptrs_dense')(x_)
-        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
-        outputy = tf.keras.layers.Add()([output_x_, output_covar_])
+            outputy, output_x_ = self._build_head(x_, covar_)
         self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
 class cnnPTRS(kerasPTRS):
     def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
@@ -276,9 +284,7 @@ class cnnPTRS(kerasPTRS):
                 if 'dropout' in layer_dict:
                     x_ = tf.keras.layers.Dropout(**layer_dict['dropout'], name = f'{layer_name}_dropout')(x_)
         x_ = tf.keras.layers.Flatten()(x_)
-        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False, name = 'ptrs_dense')(x_)
-        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
-        outputy = tf.keras.layers.Add()([output_x_, output_covar_])
+        outputy, output_x_ = self._build_head(x_, covar_)
         self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
 
                       
