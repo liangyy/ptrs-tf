@@ -3,88 +3,6 @@ from lib_LinearAlgebra import FullNormalizer, DataScheme
 import sys
 import h5py
 
-class mlpPTRS(kerasPTRS):
-    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
-        '''
-        For MLP architecture:
-        struct_ordered_dict:
-            unit1:
-                kwargs
-            unit2:
-                ...
-        All units are Dense()
-        Overall architecture:
-            - - - - - - if struct_ordered_dict is None
-            |         |
-            x1 -MLP-> m1 --|
-                           +-- linear predictor -> y
-                      x2 --|
-        '''
-        super().__init__(data_scheme, temp_path, normalizer = False, minimal_load = False)
-        self.__init_mlp_layers(struct_ordered_dict)
-    def __init_mlp_layers(self, struct_ordered_dict):
-        inputx = tf.keras.Input(shape = (self.num_x, 1))
-        covar_ = tf.keras.Input(shape = (self.num_covar))
-        if struct_ordered_dict is not None:
-            counter = 0
-            for layer_name in struct_ordered_dict.keys():
-                kwargs_i = struct_ordered_dict[layer_name]
-                if counter == 0:
-                    x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(inputx)
-                    counter = 1
-                else:
-                    x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(x_)   
-            x_ = tf.keras.layers.Flatten()(x_)
-        else: 
-            x_ = tf.keras.layers.Flatten()(inputx)
-        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False, name = 'ptrs_dense')(x_)
-        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
-        outputy = tf.keras.layers.Add()([output_x_, output_covar_])
-        self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
-class cnnPTRS(kerasPTRS):
-    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
-        '''
-        For CNN architecture
-        struct_ordered_dict:
-            unit1:
-                conv:
-                    kwargs
-                maxpool:
-                    kwargs
-                dropout:
-                    kwargs
-            unit2:  
-                ...
-        Overall architecture:
-            x1 -CNN-> m1 --|
-                           +-- linear predictor -> y
-                      x2 --|
-        '''
-        super().__init__(data_scheme, temp_path, normalizer = False, minimal_load = False)
-        self.__init_cnn_layers(struct_ordered_dict)
-    def __init_cnn_layers(self, struct_ordered_dict):
-        inputx = tf.keras.Input(shape = (self.num_x, 1))
-        covar_ = tf.keras.Input(shape = (self.num_covar))
-        counter = 0
-        for layer_name in struct_ordered_dict.keys():
-            layer_dict = struct_ordered_dict[layer_name]
-            if 'conv' not in layer_dict:
-                continue
-            else:
-                if counter == 0:
-                    x_ = tf.keras.layers.Conv1D(**layer_dict['conv'], name = f'{layer_name}_conv')(inputx)
-                    counter = 1
-                else:
-                    x_ = tf.keras.layers.Conv1D(**layer_dict['conv'], name = f'{layer_name}_conv')(x_)
-                if 'maxpool' in layer_dict:
-                    x_ = tf.keras.layers.MaxPool1D(**layer_dict['maxpool'], name = f'{layer_name}_maxpool')(x_)
-                if 'dropout' in layer_dict:
-                    x_ = tf.keras.layers.Dropout(**layer_dict['dropout'], name = f'{layer_name}_dropout')(x_)
-        x_ = tf.keras.layers.Flatten()(x_)
-        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False, name = 'ptrs_dense')(x_)
-        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
-        outputy = tf.keras.layers.Add()([output_x_, output_covar_])
-        self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
 class kerasPTRS:
     def __init__(self, data_scheme, temp_path, normalizer = False, minimal_load = False):
         '''
@@ -279,6 +197,90 @@ class kerasPTRS:
                         self.model = tf.keras.models.load_model(f[i][...])
         self.data_scheme = data_scheme
         # self.__init_cnn_layers(struct_ordered_dict)
+
+class mlpPTRS(kerasPTRS):
+    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
+        '''
+        For MLP architecture:
+        struct_ordered_dict:
+            unit1:
+                kwargs
+            unit2:
+                ...
+        All units are Dense()
+        Overall architecture:
+            - - - - - - if struct_ordered_dict is None
+            |         |
+            x1 -MLP-> m1 --|
+                           +-- linear predictor -> y
+                      x2 --|
+        '''
+        super().__init__(data_scheme, temp_path, normalizer = False, minimal_load = False)
+        self.__init_mlp_layers(struct_ordered_dict)
+    def __init_mlp_layers(self, struct_ordered_dict):
+        inputx = tf.keras.Input(shape = (self.num_x, 1))
+        covar_ = tf.keras.Input(shape = (self.num_covar))
+        if struct_ordered_dict is not None:
+            counter = 0
+            for layer_name in struct_ordered_dict.keys():
+                kwargs_i = struct_ordered_dict[layer_name]
+                if counter == 0:
+                    x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(inputx)
+                    counter = 1
+                else:
+                    x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(x_)   
+            x_ = tf.keras.layers.Flatten()(x_)
+        else: 
+            x_ = tf.keras.layers.Flatten()(inputx)
+        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False, name = 'ptrs_dense')(x_)
+        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
+        outputy = tf.keras.layers.Add()([output_x_, output_covar_])
+        self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
+class cnnPTRS(kerasPTRS):
+    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
+        '''
+        For CNN architecture
+        struct_ordered_dict:
+            unit1:
+                conv:
+                    kwargs
+                maxpool:
+                    kwargs
+                dropout:
+                    kwargs
+            unit2:  
+                ...
+        Overall architecture:
+            x1 -CNN-> m1 --|
+                           +-- linear predictor -> y
+                      x2 --|
+        '''
+        super().__init__(data_scheme, temp_path, normalizer = False, minimal_load = False)
+        self.__init_cnn_layers(struct_ordered_dict)
+    def __init_cnn_layers(self, struct_ordered_dict):
+        inputx = tf.keras.Input(shape = (self.num_x, 1))
+        covar_ = tf.keras.Input(shape = (self.num_covar))
+        counter = 0
+        for layer_name in struct_ordered_dict.keys():
+            layer_dict = struct_ordered_dict[layer_name]
+            if 'conv' not in layer_dict:
+                continue
+            else:
+                if counter == 0:
+                    x_ = tf.keras.layers.Conv1D(**layer_dict['conv'], name = f'{layer_name}_conv')(inputx)
+                    counter = 1
+                else:
+                    x_ = tf.keras.layers.Conv1D(**layer_dict['conv'], name = f'{layer_name}_conv')(x_)
+                if 'maxpool' in layer_dict:
+                    x_ = tf.keras.layers.MaxPool1D(**layer_dict['maxpool'], name = f'{layer_name}_maxpool')(x_)
+                if 'dropout' in layer_dict:
+                    x_ = tf.keras.layers.Dropout(**layer_dict['dropout'], name = f'{layer_name}_dropout')(x_)
+        x_ = tf.keras.layers.Flatten()(x_)
+        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False, name = 'ptrs_dense')(x_)
+        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
+        outputy = tf.keras.layers.Add()([output_x_, output_covar_])
+        self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
+
                       
 
 
