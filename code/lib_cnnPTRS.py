@@ -1,9 +1,10 @@
 import tensorflow as tf
-from lib_LinearAlgebra import FullNormalizer
+from lib_LinearAlgebra import FullNormalizer, DataScheme
 import sys
+import h5py
 
 class cnnPTRS:
-    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False):
+    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
         '''
         For CNN architecture
         struct_ordered_dict:
@@ -23,11 +24,13 @@ class cnnPTRS:
         temp_path: to save best model during training
         '''
         # super(cnnPTRS, self).__init__()
-        self.normalizer = normalizer
-        self.data_scheme = data_scheme
         self.temp_path = temp_path
-        self.__init_from_data_scheme()
-        self.__init_cnn_layers(struct_ordered_dict)
+        if minimal_load is False:
+            self.normalizer = normalizer
+            self.data_scheme = data_scheme
+            self.temp_path = temp_path
+            self.__init_from_data_scheme()
+            self.__init_cnn_layers(struct_ordered_dict)
     def __init_from_data_scheme(self):
         self.num_x = self.data_scheme.get_num_predictor()
         self.num_outcomes = self.data_scheme.get_num_outcome()
@@ -116,7 +119,7 @@ class cnnPTRS:
         else:
             v = var_list
         @tf.function
-        def train(self, optimizer, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None):
+        def train(self, optimizer, num_epoch, ele_valid, logging, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None):
             step = 0
             loss = 0.0
             valid_accuracy = 0.0
@@ -151,14 +154,30 @@ class cnnPTRS:
                 if ele_insample is not None:
                     ypx_in = self._predict_x(inputs_insample)
                     insample_accuracy_x = self._mean_cor_tf(ypx_in, y_insample)
-                tf.print('@@@@ Epoch', epoch, ': loss', loss, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x, output_stream = sys.stderr)
+                # tf.print('@@@@ Epoch', epoch, ': loss', loss, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x, output_stream = log_path)
+                tf.py_function(self._print, ['@@@@ Epoch', epoch, ': loss', loss, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x], [])
                 if best_v_accuracy_x < valid_accuracy_x:
-                    tf.print('@@@@ Saving model after current epoch', epoch)
+                    tf.py_function(self._print, ['@@@@ Saving model after current epoch', epoch], [])
                     best_v_accuracy_x = valid_accuracy_x
                     # outfile = self.temp_path
                     tf.py_function(self._model_save, [], [])
             return step, loss, valid_accuracy, valid_accuracy_x
         return train
+    def add_logger(self, logger):
+        self.logging = logger
+    def _print(self, *args):
+        o = []
+        for i in args:
+            i = i.numpy()
+            # breakpoint()
+            if isinstance(i, bytes):
+                i = i.decode()
+                # breakpoint()
+            else:
+                i = str(i)
+            o.append(i)
+        # breakpoint()
+        self.logging.info(' '.join(o))
     def _model_save(self):
         self.model.save(self.temp_path)
     def minimal_save(self, filename, save_curr = True):
@@ -217,7 +236,7 @@ class cnnPTRS:
                     elif i == 'keras_model_path':
                         self.model = tf.keras.models.load_model(f[i][...])
         self.data_scheme = data_scheme
-        self.__init_cnn_layers(struct_ordered_dict)
+        # self.__init_cnn_layers(struct_ordered_dict)
                       
 
 
