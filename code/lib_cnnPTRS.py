@@ -89,7 +89,7 @@ class kerasPTRS:
         else:
             v = var_list
         @tf.function
-        def train(self, optimizer, num_epoch, ele_valid, logging, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None):
+        def train(self, optimizer, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None):
             step = 0
             loss = 0.0
             valid_accuracy = 0.0
