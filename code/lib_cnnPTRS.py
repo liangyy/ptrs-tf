@@ -3,7 +3,45 @@ from lib_LinearAlgebra import FullNormalizer, DataScheme
 import sys
 import h5py
 
-class cnnPTRS:
+class mlpPTRS(kerasPTRS):
+    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
+        '''
+        For MLP architecture:
+        struct_ordered_dict:
+            unit1:
+                kwargs
+            unit2:
+                ...
+        All units are Dense()
+        Overall architecture:
+            - - - - - - if struct_ordered_dict is None
+            |         |
+            x1 -MLP-> m1 --|
+                           +-- linear predictor -> y
+                      x2 --|
+        '''
+        super().__init__(data_scheme, temp_path, normalizer = False, minimal_load = False)
+        self.__init_mlp_layers(struct_ordered_dict)
+    def __init_mlp_layers(self, struct_ordered_dict):
+        inputx = tf.keras.Input(shape = (self.num_x, 1))
+        covar_ = tf.keras.Input(shape = (self.num_covar))
+        if struct_ordered_dict is not None:
+            counter = 0
+            for layer_name in struct_ordered_dict.keys():
+                kwargs_i = struct_ordered_dict[layer_name]
+                if counter == 0:
+                    x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(inputx)
+                    counter = 1
+                else:
+                    x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(x_)   
+            x_ = tf.keras.layers.Flatten()(x_)
+        else: 
+            x_ = tf.keras.layers.Flatten()(inputx)
+        output_x_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', use_bias = False, name = 'ptrs_dense')(x_)
+        output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
+        outputy = tf.keras.layers.Add()([output_x_, output_covar_])
+        self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
+class cnnPTRS(kerasPTRS):
     def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
         '''
         For CNN architecture
@@ -21,20 +59,9 @@ class cnnPTRS:
             x1 -CNN-> m1 --|
                            +-- linear predictor -> y
                       x2 --|
-        temp_path: to save best model during training
         '''
-        # super(cnnPTRS, self).__init__()
-        self.temp_path = temp_path
-        if minimal_load is False:
-            self.normalizer = normalizer
-            self.data_scheme = data_scheme
-            self.temp_path = temp_path
-            self.__init_from_data_scheme()
-            self.__init_cnn_layers(struct_ordered_dict)
-    def __init_from_data_scheme(self):
-        self.num_x = self.data_scheme.get_num_predictor()
-        self.num_outcomes = self.data_scheme.get_num_outcome()
-        self.num_covar = self.data_scheme.get_num_covariate()
+        super().__init__(data_scheme, temp_path, normalizer = False, minimal_load = False)
+        self.__init_cnn_layers(struct_ordered_dict)
     def __init_cnn_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
         covar_ = tf.keras.Input(shape = (self.num_covar))
@@ -58,6 +85,21 @@ class cnnPTRS:
         output_covar_ = tf.keras.layers.Dense(self.num_outcomes, activation = 'linear', name = 'covar_dense')(covar_)
         outputy = tf.keras.layers.Add()([output_x_, output_covar_])
         self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
+class kerasPTRS:
+    def __init__(self, data_scheme, temp_path, normalizer = False, minimal_load = False):
+        '''
+        temp_path: to save best model during training
+        '''
+        self.temp_path = temp_path
+        if minimal_load is False:
+            self.normalizer = normalizer
+            self.data_scheme = data_scheme
+            self.temp_path = temp_path
+            self.__init_from_data_scheme()
+    def __init_from_data_scheme(self):
+        self.num_x = self.data_scheme.get_num_predictor()
+        self.num_outcomes = self.data_scheme.get_num_outcome()
+        self.num_covar = self.data_scheme.get_num_covariate()
     def _mse_loss_tf(self, y, yp):
         return tf.reduce_mean(tf.math.pow(y - yp, 2))
     def _mean_cor_tf(self, y, yp):
