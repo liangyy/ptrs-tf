@@ -22,10 +22,13 @@ class kerasPTRS:
         o_x = []
         for i in range(self.num_outcomes):
             o_x.append(tf.keras.layers.Dense(1, activation = 'linear', use_bias = use_bias, name = f'{name_prefix}_{i}')(input_x))
-        return tf.keras.concatenate(o_x, axis = 0)
+        if len(o_x) > 1:
+            return tf.keras.layers.concatenate(o_x, axis = 0)
+        else:
+            return o_x[0]
     def _build_head(self, input_x, input_covar):
-        output_x_ = _build_flex_linear_predictor('ptrs_dense', input_x = input_x, use_bias = False)
-        output_covar_ = _build_flex_linear_predictor('covar_dense', input_x = input_covar, use_bias = True)
+        output_x_ = self._build_flex_linear_predictor('ptrs_dense', input_x = input_x, use_bias = False)
+        output_covar_ = self._build_flex_linear_predictor('covar_dense', input_x = input_covar, use_bias = True)
         outputy = tf.keras.layers.Add()([output_x_, output_covar_])
         return outputy, output_x_
     def _mse_loss_tf(self, y, yp):
