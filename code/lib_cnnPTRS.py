@@ -23,7 +23,7 @@ class kerasPTRS:
         for i in range(self.num_outcomes):
             o_x.append(tf.keras.layers.Dense(1, activation = 'linear', use_bias = use_bias, name = f'{name_prefix}_{i}')(input_x))
         if len(o_x) > 1:
-            return tf.keras.layers.concatenate(o_x, axis = 0)
+            return tf.keras.layers.concatenate(o_x, axis = 1)
         else:
             return o_x[0]
     def _build_head(self, input_x, input_covar):
@@ -228,7 +228,7 @@ class mlpPTRS(kerasPTRS):
                            +-- linear predictor -> y
                       x2 --|
         '''
-        super().__init__(data_scheme, temp_path, normalizer = False, minimal_load = False)
+        super().__init__(data_scheme, temp_path, normalizer = normalizer, minimal_load = minimal_load)
         self.__init_mlp_layers(struct_ordered_dict)
     def __init_mlp_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
@@ -245,7 +245,7 @@ class mlpPTRS(kerasPTRS):
             x_ = tf.keras.layers.Flatten()(x_)
         else: 
             x_ = tf.keras.layers.Flatten()(inputx)
-            outputy, output_x_ = self._build_head(x_, covar_)
+        outputy, output_x_ = self._build_head(x_, covar_)
         self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
 class cnnPTRS(kerasPTRS):
     def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
@@ -266,7 +266,7 @@ class cnnPTRS(kerasPTRS):
                            +-- linear predictor -> y
                       x2 --|
         '''
-        super().__init__(data_scheme, temp_path, normalizer = False, minimal_load = False)
+        super().__init__(data_scheme, temp_path, normalizer = normalizer, minimal_load = minimal_load)
         self.__init_cnn_layers(struct_ordered_dict)
     def __init_cnn_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
