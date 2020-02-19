@@ -1,0 +1,4 @@
+phase1:
+  optimizer: 'SGD'
+  epoch: 220
+
