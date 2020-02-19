@@ -6,7 +6,7 @@ def get_phase(phase_yaml):
     if phase_yaml is None:
         phase = {
             'phase1': {
-                'optimizer': 'Adam'
+                'optimizer': 'Adam',
                 'epoch': 20
             }    
         }

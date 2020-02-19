@@ -1,0 +1,8 @@
+layer1:
+    activation: 'relu'
+    units: 100
+layer2:
+    activation: 'relu'
+    units: 50
+
+

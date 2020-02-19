@@ -253,7 +253,7 @@ class LeastSquaredEstimator:
         if self.data_scheme is None:
             return None
         else:
-            n_predictor = self.data_scheme.num_predictors
+            n_predictor = self.data_scheme.get_num_predictor()
             n_covariate = self.data_scheme.get_num_covariate()
             n_outcome = self.data_scheme.get_num_outcome()
             x_dim = n_predictor + n_covariate

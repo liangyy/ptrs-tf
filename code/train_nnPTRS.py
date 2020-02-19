@@ -24,7 +24,7 @@ parser.add_argument('--batch-size', required=True, type=int, help='''
 # parser.add_argument('--optimizer', required=True, help='''
 #     SGD, Adam, ...
 # ''')
-parser.add_argument('--valid-and-test-size', default=4096, help='''
+parser.add_argument('--valid-and-test-size', default=4096, type=int, help='''
     Size of test and validation set (default = 4096). 
     Extract validation set and then test set.
 ''')
@@ -53,7 +53,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 import h5py
-import logging
+import logging, sys
 
 logging.basicConfig(
     level = logging.INFO, 
@@ -83,7 +83,7 @@ x_indice = [ int(i) for i in df_gene_joined['col_idx'].to_list() ]
 
 # Load training set and do splitting
 logging.info('Loading training set and splitting')
-hdf5_test = args.trainig_set
+hdf5_test = args.training_set
 scheme_yaml = args.data_scheme_yaml
 split_size = args.valid_and_test_size  
 logging.info(f'Split size in the training set is {split_size}')
@@ -91,9 +91,11 @@ data_scheme, sample_size = util_hdf5.build_data_scheme(
     hdf5_test, 
     scheme_yaml, 
     batch_size = split_size, 
-    inv_norm_y = True, 
-    x_indice = x_indice
+    inv_norm_y = True 
+    # x_indice = x_indice
 )
+
+data_scheme.x_indice = x_indice
 
 logging.info('Set validation and test set as the first and second splits')
 dataset_valid = data_scheme.dataset.take(1)
@@ -118,19 +120,19 @@ if args.model_yaml is not None:
     cnn_model = util_misc.load_ordered_yaml(args.model_yaml)
 else:
     cnn_model = None
-temp_placeholder = args.output_prefix + '.init.h5'
+temp_placeholder = args.output_prefix + '.empty.h5'
 if args.model_type == 'MLP' or args.model_yaml is None:
-    nn = lib_cnnPTRS.mlpPTRS(None, data_scheme, temp_placeholder, normalizer = True)
+    nn = lib_cnnPTRS.mlpPTRS(cnn_model, data_scheme, temp_placeholder, normalizer = True)
 elif args.model_type == 'CNN':
-    nn = lib_cnnPTRS.cnnPTRS(None, data_scheme, temp_placeholder, normalizer = True)
+    nn = lib_cnnPTRS.cnnPTRS(cnn_model, data_scheme, temp_placeholder, normalizer = True)
 nn.model.summary()
 nn.add_logger(logging)
-nn.minimal_save(args.output_prefix + '.empty.h5')
+nn.minimal_save(temp_placeholder)
 
 
 # Prepare normalizer
 logging.info('Pre-computing normalizer')
-norm, norm_v, norm_i = cnn.prep_train(ele_valid, ele_insample) 
+norm, norm_v, norm_i = nn.prep_train(ele_valid, ele_insample) 
 
 # Training
 logging.info('Prepare phase yaml')
@@ -138,21 +140,21 @@ phase_dic = util_train.get_phase(args.phase_yaml)
 prev_opt = ''
 for phase in phase_dic.keys():
     logging.info(f'@ Phase {phase} start')
-    if 'optimizer' not in phase_dic or 'epoch' not in phase_dic:
+    if 'optimizer' not in phase_dic[phase] or 'epoch' not in phase_dic[phase]:
         logging.info('@ Wrong phase. Skip.')
         continue
     nn.temp_path = args.output_prefix + '.' + phase + '.h5'
-    if phase_dic['optimizer'] != prev_opt:
+    if phase_dic[phase]['optimizer'] != prev_opt:
         logging.info(f'@@ Phase {phase}: building optimizer and graph')
-        optimizer = str2optimizer()
-        mytrain = cnn.train_func()
+        optimizer = util_train.str2optimizer(phase_dic[phase]['optimizer'])
+        mytrain = nn.train_func()
     
     # self, optimizer, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None, normalizer_insample = None
-    logging.info(f'@@ Phase {phase}: start to run!')
+    logging.info('@@ Phase {}: start to run with optimizer {}'.format(phase, phase_dic[phase]['optimizer']))
     mytrain(
         nn, 
         optimizer, 
-        phase_dic['epoch'], 
+        phase_dic[phase]['epoch'], 
         ele_valid, 
         normalizer = norm, 
         normalizer_valid = norm_v, 

@@ -1,19 +1,21 @@
 layer1:
     conv:
-        kernel_size: 4
-        filters: 16
+        kernel_size: 8
+        strides: 2
+        filters: 32
         activation: 'elu'
     maxpool:
         pool_size: 2
     # dropout:
     #     rate: 0.2
-# layer2:
-#     conv:
-#         kernel_size: 4
-#         filters: 16
-#         activation: 'elu'
-#     maxpool:
-#         pool_size: 2
+layer2:
+    conv:
+        kernel_size: 8
+        strides: 2
+        filters: 32
+        activation: 'elu'
+    maxpool:
+        pool_size: 2
     # dropout:
     #    rate: 0.2  
 # layer3:

@@ -1,6 +1,6 @@
 import tensorflow as tf
 from lib_LinearAlgebra import FullNormalizer, DataScheme
-import sys
+import sys, re
 import h5py
 
 class kerasPTRS:
@@ -169,7 +169,7 @@ class kerasPTRS:
         3) normalizer value
         '''
         save_dic = {}
-        save_dic['keras_model_path'] = 'keras-model-save' + filename
+        save_dic['keras_model_path'] = filename + '.keras-model-save.h5'
         if save_curr is True:
             self.model.save(save_dic['keras_model_path'])
         else:
@@ -213,7 +213,8 @@ class kerasPTRS:
                         elif f[i][...] == 0:
                             setattr(self, i, False)
                     elif i == 'keras_model_path':
-                        self.model = tf.keras.models.load_model(f[i][...])
+                        # breakpoint()
+                        self.model = tf.keras.models.load_model(f[i][...].tolist())
         self.data_scheme = data_scheme
         # self.__init_cnn_layers(struct_ordered_dict)
 
@@ -235,22 +236,17 @@ class mlpPTRS(kerasPTRS):
                       x2 --|
         '''
         super().__init__(data_scheme, temp_path, normalizer = normalizer, minimal_load = minimal_load)
-        self.__init_mlp_layers(struct_ordered_dict)
+        if minimal_load is False:
+            self.__init_mlp_layers(struct_ordered_dict)
     def __init_mlp_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
+        x_ = tf.keras.layers.Flatten()(inputx)
         covar_ = tf.keras.Input(shape = (self.num_covar))
         if struct_ordered_dict is not None:
-            counter = 0
             for layer_name in struct_ordered_dict.keys():
                 kwargs_i = struct_ordered_dict[layer_name]
-                if counter == 0:
-                    x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(inputx)
-                    counter = 1
-                else:
-                    x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(x_)   
-            x_ = tf.keras.layers.Flatten()(x_)
-        else: 
-            x_ = tf.keras.layers.Flatten()(inputx)
+                x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(x_)   
+            # x_ = tf.keras.layers.Flatten()(x_)
         outputy, output_x_ = self._build_head(x_, covar_)
         self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
 class cnnPTRS(kerasPTRS):
@@ -273,7 +269,8 @@ class cnnPTRS(kerasPTRS):
                       x2 --|
         '''
         super().__init__(data_scheme, temp_path, normalizer = normalizer, minimal_load = minimal_load)
-        self.__init_cnn_layers(struct_ordered_dict)
+        if minimal_load is False:
+            self.__init_cnn_layers(struct_ordered_dict)
     def __init_cnn_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
         covar_ = tf.keras.Input(shape = (self.num_covar))
