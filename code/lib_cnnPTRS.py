@@ -79,11 +79,15 @@ class kerasPTRS:
     def predict_x(self, ele):
         inputs, y = self._ele_unpack(ele)
         return self._predict_x(inputs), y   
-    def prep_train(self, ele_valid):
+    def prep_train(self, ele_valid, ele_insample = None):
         if self.normalizer == True:
             normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
             normalizer_valid = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele_valid, tensor = True)
-            return normalizer, normalizer_valid
+            if ele_insample is None:
+                return normalizer, normalizer_valid
+            else:
+                normalizer_insample = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele_insample, tensor = True)
+                return normalizer, normalizer_valid, normalizer_insample
         else:
             return None, None
     def train_func(self, var_list = None):
@@ -92,7 +96,7 @@ class kerasPTRS:
         else:
             v = var_list
         @tf.function
-        def train(self, optimizer, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None):
+        def train(self, optimizer, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None, normalizer_insample = None):
             step = 0
             loss = 0.0
             valid_accuracy = 0.0
@@ -106,6 +110,8 @@ class kerasPTRS:
             inputs_valid, y_valid = self.data_scheme.get_data_matrix_x_in_cnn(ele_valid)
             if self.normalizer == True:
                 inputs_valid = normalizer_valid.apply(inputs_valid)
+            if self.normalizer == True and ele_insample is not None and normalizer_insample is None:
+                ele_insample = None
             if ele_insample is not None:
                 inputs_insample, y_insample = self.data_scheme.get_data_matrix_x_in_cnn(ele_insample)
                 if self.normalizer == True:

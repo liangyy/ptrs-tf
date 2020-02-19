@@ -22,7 +22,7 @@ class DataScheme:
         self._update_indice(outcome_indice, 'outcome_indice')
         self._update_indice(covariate_indice, 'covariate_indice')
         self._update_indice(x_indice, 'x_indice', type = 'X')
-        self.num_predictors = self.get_num_predictor()
+        # self.num_predictors = self.get_num_predictor()
     def get_data_matrix(self, element, only_x = False):
         x = element[self.X_index]
         if self.x_indice is not None:
@@ -45,7 +45,7 @@ class DataScheme:
         '''
         return indice in data matrix that are for x
         '''
-        n_x = self.num_predictors
+        n_x = self.get_num_predictor()  # self.num_predictors
         start = 0
         end = n_x
         return [ i for i in range(start, end) ]
@@ -53,7 +53,7 @@ class DataScheme:
         '''
         return indice in data matrix that are for covariates
         '''
-        n_x = self.num_predictors
+        n_x = self.get_num_predictor()  # self.num_predictors
         n_covar = self.get_num_covariate()
         start = n_x
         end = n_x + n_covar
