@@ -11,6 +11,7 @@ parser.add_argument('--data-scheme-yaml', required=True, help='''
 parser.add_argument('--model-yaml', default=None, help='''
     Model YAML (should match with `--model-type`)
     Default: None (linear model)
+    If set 'baseline', it means None as well
 ''')
 parser.add_argument('--model-type', required=True, help='''
     CNN or MLP
@@ -61,6 +62,10 @@ logging.basicConfig(
     format = '%(asctime)s  %(message)s',
     datefmt = '%Y-%m-%d %I:%M:%S %p'
 )
+
+# args manipulation
+if args.model_yaml == 'baseline':
+    args.model_yaml = None
 
 # Load spatial information
 logging.info('Loading spatial information: get gene annotation')
