@@ -5,7 +5,7 @@ GPUID=$1
 phaseYAML=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/phase_mlp.yaml
 modeltype=MLP
 
-cd /vol/bmd/yanyul/GitHub/ptrs-tf/code
+cd /vol/bmd/yanyul/GitHub/ptrs-tf/scripts
 
 modelname=baseline
 echo "On $modelname"

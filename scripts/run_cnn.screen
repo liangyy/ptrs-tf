@@ -1,0 +1,14 @@
+# computing environment setup
+source /vol/bmd/yanyul/miniconda3/etc/profile.d/conda.sh
+conda activate tensorflow
+source /home/yanyul/tensorflow_env.sh
+export CUDA_VISIBLE_DEVICES=3
+
+# pre-specifics
+WORKDIR=/vol/bmd/yanyul/GitHub/ptrs-tf/notebook
+
+# code chunk
+cd $WORKDIR
+echo 'Hello!, CNN  run is about to start'
+screen -dmS test jupyter nbconvert --to notebook --ExecutePreprocessor.timeout=-1 --inplace --execute run_cnn_on_british.ipynb > run_cnn_on_british.log 2>&1
+

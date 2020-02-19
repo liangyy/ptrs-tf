@@ -1,6 +1,6 @@
 phase1:
   optimizer: 'SGD'
-  epoch: 20
-phase2:
-  optimizer: 'Adam'
-  epoch: 200
+  epoch: 220
+# phase2:
+#   optimizer: 'Adam'
+#   epoch: 200

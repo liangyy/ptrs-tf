@@ -29,3 +29,11 @@ outprefix=least_square_model-$pop
 batchsize=8096
 screen -dmS least_square bash run_least_squared.screen $myhdf5 $myyaml $outprefix $batchsize 
 ```
+
+Running nnPTRS
+
+```
+screen -dmS baseline bash submit_train_baselinePTRS_ctimp_whole_blood.screen 1 > submit_train_baselinePTRS_ctimp_whole_blood.log 2>&1
+screen -dmS cnn bash submit_train_cnnPTRS_ctimp_whole_blood.screen 2 > submit_train_cnnPTRS_ctimp_whole_blood.log 2>&1
+screen -dmS mlp bash submit_train_mlpPTRS_ctimp_whole_blood.screen 3 > submit_train_mlpPTRS_ctimp_whole_blood.log 2>&1
+```
