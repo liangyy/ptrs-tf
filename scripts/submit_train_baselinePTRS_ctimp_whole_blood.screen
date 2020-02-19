@@ -1,0 +1,19 @@
+# ARGS1: GPU ID
+
+TRAINSET=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_British.hdf5
+GPUID=$1
+phaseYAML=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/phase_mlp.yaml
+modeltype=MLP
+
+cd /vol/bmd/yanyul/GitHub/ptrs-tf/code
+
+modelname=baseline
+echo "On $modelname"
+bash run_nnPTRS.sh \
+  $GPUID \
+  $modelname \
+  $modelname \
+  $phaseYAML \
+  $modeltype \
+  $TRAINSET \
+  

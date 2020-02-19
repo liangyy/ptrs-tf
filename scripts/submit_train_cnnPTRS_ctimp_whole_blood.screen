@@ -1,0 +1,29 @@
+# ARGS1: GPU ID
+
+TRAINSET=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_British.hdf5
+GPUID=$1
+phaseYAML=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/phase_cnn.yaml
+modeltype=CNN
+
+cd /vol/bmd/yanyul/GitHub/ptrs-tf/code
+
+modelname=cnn_ptrs_1
+echo "On $modelname"
+bash run_nnPTRS.sh \
+  $GPUID \
+  $modelname \
+  ../misc_files/$modelname.yaml \
+  $phaseYAML \
+  $modeltype \
+  $TRAINSET \
+  
+
+modelname=cnn_ptrs_2
+echo "On $modelname"
+bash run_nnPTRS.sh \
+  $GPUID \
+  $modelname \
+  ../misc_files/$modelname.yaml \
+  $phaseYAML \
+  $modeltype \
+  $TRAINSET
