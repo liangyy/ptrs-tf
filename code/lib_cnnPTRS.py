@@ -4,7 +4,7 @@ import sys, re
 import h5py
 
 class kerasPTRS:
-    def __init__(self, data_scheme, temp_path, normalizer = False, minimal_load = False):
+    def __init__(self, data_scheme, temp_path, normalizer = False, minimal_load = False, covariate = True):
         '''
         temp_path: to save best model during training
         '''
@@ -14,6 +14,7 @@ class kerasPTRS:
             self.data_scheme = data_scheme
             self.temp_path = temp_path
             self.__init_from_data_scheme()
+            self.covariate = covariate
     def __init_from_data_scheme(self):
         self.num_x = self.data_scheme.get_num_predictor()
         self.num_outcomes = self.data_scheme.get_num_outcome()
@@ -31,6 +32,9 @@ class kerasPTRS:
         output_covar_ = self._build_flex_linear_predictor('covar_dense', input_x = input_covar, use_bias = True)
         outputy = tf.keras.layers.Add()([output_x_, output_covar_])
         return outputy, output_x_
+    def _build_head_x_only(self, input_x):
+        output_x_ = self._build_flex_linear_predictor('ptrs_dense', input_x = input_x, use_bias = False)
+        return output_x_, output_x_
     def _mse_loss_tf(self, y, yp):
         return tf.reduce_mean(tf.math.pow(y - yp, 2))
     def _mean_cor_tf(self, y, yp):
@@ -219,7 +223,7 @@ class kerasPTRS:
         # self.__init_cnn_layers(struct_ordered_dict)
 
 class mlpPTRS(kerasPTRS):
-    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
+    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False, covariate = True):
         '''
         For MLP architecture:
         struct_ordered_dict:
@@ -235,22 +239,26 @@ class mlpPTRS(kerasPTRS):
                            +-- linear predictor -> y
                       x2 --|
         '''
-        super().__init__(data_scheme, temp_path, normalizer = normalizer, minimal_load = minimal_load)
+        super().__init__(data_scheme, temp_path, normalizer = normalizer, minimal_load = minimal_load, covariate = covariate)
         if minimal_load is False:
             self.__init_mlp_layers(struct_ordered_dict)
     def __init_mlp_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
         x_ = tf.keras.layers.Flatten()(inputx)
-        covar_ = tf.keras.Input(shape = (self.num_covar))
         if struct_ordered_dict is not None:
             for layer_name in struct_ordered_dict.keys():
                 kwargs_i = struct_ordered_dict[layer_name]
                 x_ = tf.keras.layers.Dense(**kwargs_i, name = f'{layer_name}_dense')(x_)   
             # x_ = tf.keras.layers.Flatten()(x_)
-        outputy, output_x_ = self._build_head(x_, covar_)
+        if self.covariate is True:
+            covar_ = tf.keras.Input(shape = (self.num_covar))
+            outputy, output_x_ = self._build_head(x_, covar_)
+        else:
+            covar_ = tf.keras.Input(shape = (self.num_covar))
+            outputy, output_x_ = self._build_head_x_only(x_)
         self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
 class cnnPTRS(kerasPTRS):
-    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False):
+    def __init__(self, struct_ordered_dict, data_scheme, temp_path, normalizer = False, minimal_load = False, covariate = True):
         '''
         For CNN architecture
         struct_ordered_dict:
@@ -268,12 +276,11 @@ class cnnPTRS(kerasPTRS):
                            +-- linear predictor -> y
                       x2 --|
         '''
-        super().__init__(data_scheme, temp_path, normalizer = normalizer, minimal_load = minimal_load)
+        super().__init__(data_scheme, temp_path, normalizer = normalizer, minimal_load = minimal_load, covariate = covariate)
         if minimal_load is False:
             self.__init_cnn_layers(struct_ordered_dict)
     def __init_cnn_layers(self, struct_ordered_dict):
         inputx = tf.keras.Input(shape = (self.num_x, 1))
-        covar_ = tf.keras.Input(shape = (self.num_covar))
         counter = 0
         for layer_name in struct_ordered_dict.keys():
             layer_dict = struct_ordered_dict[layer_name]
@@ -290,7 +297,12 @@ class cnnPTRS(kerasPTRS):
                 if 'dropout' in layer_dict:
                     x_ = tf.keras.layers.Dropout(**layer_dict['dropout'], name = f'{layer_name}_dropout')(x_)
         x_ = tf.keras.layers.Flatten()(x_)
-        outputy, output_x_ = self._build_head(x_, covar_)
+        if covariate is True:
+            covar_ = tf.keras.Input(shape = (self.num_covar))
+            outputy, output_x_ = self._build_head(x_, covar_)
+        else:
+            covar_ = tf.keras.Input(shape = (self.num_covar))
+            outputy, output_x_ = self._build_head_x_only(x_)
         self.model = tf.keras.Model(inputs = [inputx, covar_], outputs = [outputy, output_x_])
 
                       
