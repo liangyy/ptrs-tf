@@ -19,6 +19,9 @@ parser.add_argument('--model-type', required=True, help='''
 parser.add_argument('--batch-size', required=True, type=int, help='''
     Batch size in gradient descent
 ''')
+parser.add_argument('--residual-mode', , action='store_true', help='''
+    If specified, it first run LS and fit the residual without covariates.
+''')
 # parser.add_argument('--num-epoch', required=True, type=int, help='''
 #     Number of epoch
 # ''')
@@ -103,6 +106,9 @@ data_scheme, sample_size = util_hdf5.build_data_scheme(
 data_scheme.x_indice = x_indice
 
 logging.info('Set validation and test set as the first and second splits')
+if args.residual_mode is True:
+    # save for future use
+    dataset_full = data_scheme.dataset
 dataset_valid = data_scheme.dataset.take(1)
 data_scheme.dataset = data_scheme.dataset.skip(1)
 dataset_test = data_scheme.dataset.take(1)
@@ -113,6 +119,31 @@ batch_size = args.batch_size
 logging.info(f'Set batch size = {batch_size}')
 data_scheme.dataset = data_scheme.dataset.unbatch().batch(batch_size)
 
+# If --residual-mode run the following to compute residual 
+# and prepare tf.Dataset
+logging.info('** In residual mode: start')
+ls_ptrs = lib_LinearAlgebra.LeastSquaredEstimator(data_scheme, intercept = True, normalizer = True)
+logging.info('** In residual mode: solving least squares')
+ls_ptrs.solve()
+logging.info('** In residual mode: predicting for the full dataset')
+o = ls_ptrs.predict(dataset_full)
+logging.info('** In residual mode: computing residual')
+residual = o['y'] - o['y_pred']
+logging.info('** In residual mode: REDO building Dataset')
+data_scheme, sample_size = util_hdf5.build_data_scheme_with_preset_y(
+    hdf5_test, 
+    scheme_yaml, 
+    residual,
+    batch_size = split_size
+) 
+
+data_scheme.x_indice = x_indice
+
+dataset_valid = data_scheme.dataset.take(1)
+data_scheme.dataset = data_scheme.dataset.skip(1)
+dataset_test = data_scheme.dataset.take(1)
+data_scheme.dataset = data_scheme.dataset.skip(1)
+dataset_insample = data_scheme.dataset.take(1)
 
 # Prepare validation and insample Tensor
 logging.info('Prepare validation and insample Tensors')
