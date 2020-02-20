@@ -297,7 +297,7 @@ class cnnPTRS(kerasPTRS):
                 if 'dropout' in layer_dict:
                     x_ = tf.keras.layers.Dropout(**layer_dict['dropout'], name = f'{layer_name}_dropout')(x_)
         x_ = tf.keras.layers.Flatten()(x_)
-        if covariate is True:
+        if self.covariate is True:
             covar_ = tf.keras.Input(shape = (self.num_covar))
             outputy, output_x_ = self._build_head(x_, covar_)
         else:
