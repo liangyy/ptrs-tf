@@ -37,3 +37,11 @@ screen -dmS baseline bash submit_train_baselinePTRS_ctimp_whole_blood.screen 1 >
 screen -dmS cnn bash submit_train_cnnPTRS_ctimp_whole_blood.screen 2 > submit_train_cnnPTRS_ctimp_whole_blood.log 2>&1
 screen -dmS mlp bash submit_train_mlpPTRS_ctimp_whole_blood.screen 3 > submit_train_mlpPTRS_ctimp_whole_blood.log 2>&1
 ```
+
+Running nnPTRS in residual mode
+ 
+```
+screen -dmS baseline bash submit_train_baselinePTRS_ctimp_whole_blood.screen 1 residual > submit_train_baselinePTRS_ctimp_whole_blood.log 2>&1
+screen -dmS cnn bash submit_train_cnnPTRS_ctimp_whole_blood.screen 2 residual > submit_train_cnnPTRS_ctimp_whole_blood.log 2>&1
+screen -dmS mlp bash submit_train_mlpPTRS_ctimp_whole_blood.screen 3 residual > submit_train_mlpPTRS_ctimp_whole_blood.log 2>&1
+```

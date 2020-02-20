@@ -1,4 +1,7 @@
 # ARGS1: GPU ID
+# ARGS2: residual mode 
+
+residualmode=$2
 
 TRAINSET=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_British.hdf5
 GPUID=$1
@@ -16,4 +19,5 @@ bash run_nnPTRS.sh \
   $phaseYAML \
   $modeltype \
   $TRAINSET \
+  $residualmode
   
