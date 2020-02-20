@@ -9,8 +9,13 @@ def update_cols(mat, new_submat, exclude_idx = None):
     if exclude_idx is None:
         return new_submat
     else:
-        out = new_submat
-        out[:, exclude_idx] = mat[:, exclude_idx]
+        out = mat
+        include_idx = []
+        for i in range(out.shape[1]):
+            if i not in exclude_idx:
+                include_idx.append(i)
+        # breakpoint()
+        out[:, include_idx] = new_submat
         return out
 def extract_cols(h5mat, col_names, target_names):
     col_names = np.array(col_names)
