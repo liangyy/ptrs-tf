@@ -5,6 +5,13 @@ import h5py
 import util_ElasticNet
 import lib_LinearAlgebra
 
+def update_cols(mat, new_submat, exclude_idx = None):
+    if exclude_idx is None:
+        return new_submat
+    else:
+        out = new_submat
+        out[:, exclude_idx] = mat[:, exclude_idx]
+        return out
 def extract_cols(h5mat, col_names, target_names):
     col_names = np.array(col_names)
     target_names = np.array(target_names)

@@ -55,7 +55,11 @@ def load_hdf5_as_dataset(filename_list, dataset_list, batch_size, num_epochs, sh
     if inv_norm_y is False and preset_y is None:
         y = tfio.IODataset.from_hdf5(filename_list[1], dataset_list[1])
     elif preset_y is not None:
-        y = preset_y
+        with h5py.File(filename_list[1], 'r') as f:
+            name_y = re.sub('^/', '', dataset_list[1])
+            y = f[name_y][:]
+            y = util_hdf5.update_cols(y, preset_y, exclude_idx = covar_indice)
+        y = tf.data.Dataset.from_tensor_slices(y)
     elif inv_norm_y is True:
         with h5py.File(filename_list[1], 'r') as f:
             name_y = re.sub('^/', '', dataset_list[1])
