@@ -19,7 +19,7 @@ parser.add_argument('--model-type', required=True, help='''
 parser.add_argument('--batch-size', required=True, type=int, help='''
     Batch size in gradient descent
 ''')
-parser.add_argument('--residual-mode', , action='store_true', help='''
+parser.add_argument('--residual-mode', action='store_true', help='''
     If specified, it first run LS and fit the residual without covariates.
 ''')
 # parser.add_argument('--num-epoch', required=True, type=int, help='''
@@ -121,29 +121,33 @@ data_scheme.dataset = data_scheme.dataset.unbatch().batch(batch_size)
 
 # If --residual-mode run the following to compute residual 
 # and prepare tf.Dataset
-logging.info('** In residual mode: start')
-ls_ptrs = lib_LinearAlgebra.LeastSquaredEstimator(data_scheme, intercept = True, normalizer = True)
-logging.info('** In residual mode: solving least squares')
-ls_ptrs.solve()
-logging.info('** In residual mode: predicting for the full dataset')
-o = ls_ptrs.predict(dataset_full)
-logging.info('** In residual mode: computing residual')
-residual = o['y'] - o['y_pred']
-logging.info('** In residual mode: REDO building Dataset')
-data_scheme, sample_size = util_hdf5.build_data_scheme_with_preset_y(
-    hdf5_test, 
-    scheme_yaml, 
-    residual,
-    batch_size = split_size
-) 
+if args.residual_mode is True:
+    logging.info('** In residual mode: start')
+    ls_ptrs = lib_LinearAlgebra.LeastSquaredEstimator(data_scheme, intercept = True, normalizer = True)
+    logging.info('** In residual mode: solving least squares')
+    ls_ptrs.solve()
+    logging.info('** In residual mode: predicting for the full dataset')
+    o = ls_ptrs.predict(dataset_full)
+    logging.info('** In residual mode: computing residual')
+    residual = o['y'] - o['y_pred']
+    logging.info('** In residual mode: REDO building Dataset')
+    data_scheme, sample_size = util_hdf5.build_data_scheme_with_preset_y(
+        hdf5_test, 
+        scheme_yaml, 
+        residual,
+        batch_size = split_size
+    ) 
 
-data_scheme.x_indice = x_indice
+    data_scheme.x_indice = x_indice
 
-dataset_valid = data_scheme.dataset.take(1)
-data_scheme.dataset = data_scheme.dataset.skip(1)
-dataset_test = data_scheme.dataset.take(1)
-data_scheme.dataset = data_scheme.dataset.skip(1)
-dataset_insample = data_scheme.dataset.take(1)
+    dataset_valid = data_scheme.dataset.take(1)
+    data_scheme.dataset = data_scheme.dataset.skip(1)
+    dataset_test = data_scheme.dataset.take(1)
+    data_scheme.dataset = data_scheme.dataset.skip(1)
+    dataset_insample = data_scheme.dataset.take(1)
+    covariate_mode = False
+else:
+    covariate_mode = True
 
 # Prepare validation and insample Tensor
 logging.info('Prepare validation and insample Tensors')
@@ -158,10 +162,10 @@ else:
     cnn_model = None
 temp_placeholder = args.output_prefix + '.empty.h5'
 if args.model_type == 'MLP' or args.model_yaml is None:
-    nn = lib_cnnPTRS.mlpPTRS(cnn_model, data_scheme, temp_placeholder, normalizer = True)
+    nn = lib_cnnPTRS.mlpPTRS(cnn_model, data_scheme, temp_placeholder, normalizer = True, covariate = covariate_mode)
 elif args.model_type == 'CNN':
-    nn = lib_cnnPTRS.cnnPTRS(cnn_model, data_scheme, temp_placeholder, normalizer = True)
-nn.model.summary()
+    nn = lib_cnnPTRS.cnnPTRS(cnn_model, data_scheme, temp_placeholder, normalizer = True, covariate = covariate_mode)
+nn.model.summary(print_fn = lambda x: print(x, file = sys.stderr))
 nn.add_logger(logging)
 nn.minimal_save(temp_placeholder)
 
