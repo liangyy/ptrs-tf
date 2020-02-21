@@ -107,6 +107,8 @@ class kerasPTRS:
             valid_accuracy_x = 0.0
             insample_accuracy_x = 0.0
             best_v_accuracy_x = 0.0
+            loss_agg = 0.0
+            counter = 0.0
             # work-around so that tf.function decoration works (.shape is not working in current tf2 version)
             # if self.normalizer == True:
             #     normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
@@ -123,13 +125,16 @@ class kerasPTRS:
             ypx = self._predict_x(inputs_valid)
             best_v_accuracy_x = self._mean_cor_tf(ypx, y_valid)
             for epoch in range(num_epoch):
+                loss_agg = 0.0
+                counter = 0.0
                 for ele in self.data_scheme.dataset:
                     inputs, y = self.data_scheme.get_data_matrix_x_in_cnn(ele)
                     if self.normalizer == True:
                         inputs = normalizer.apply(inputs)
                     step += 1
                     loss = self._train_one_step(optimizer, inputs, y, var_list)
-                    
+                    loss_agg = (loss_agg * counter + loss) / (counter + 1)
+                    counter += 1
                 yp = self._predict(inputs_valid)
                 ypx = self._predict_x(inputs_valid)
                 valid_accuracy = self._mean_cor_tf(yp, y_valid)
@@ -138,7 +143,7 @@ class kerasPTRS:
                     ypx_in = self._predict_x(inputs_insample)
                     insample_accuracy_x = self._mean_cor_tf(ypx_in, y_insample)
                 # tf.print('@@@@ Epoch', epoch, ': loss', loss, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x, output_stream = log_path)
-                tf.py_function(self._print, ['@@@@ Epoch', epoch, ': loss', loss, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x], [])
+                tf.py_function(self._print, ['@@@@ Epoch', epoch, ': loss', loss, ': agg loss', loss_agg, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x], [])
                 if best_v_accuracy_x < valid_accuracy_x:
                     tf.py_function(self._print, ['@@@@ Saving model after current epoch', epoch], [])
                     best_v_accuracy_x = valid_accuracy_x
