@@ -1,9 +1,7 @@
 # ARGS1: GPU ID
-# ARGS2: residual mode
-# ARGS3: suffix
+# ARGS2: residual mode 
 
 residualmode=$2
-mysuffix=$3 
 
 TRAINSET=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_British.hdf5
 GPUID=$1
@@ -16,7 +14,7 @@ modelname=mlp_ptrs_1
 echo "On $modelname"
 bash run_nnPTRS.sh \
   $GPUID \
-  $modelname$mysuffix \
+  $modelname.rerun \
   /vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/$modelname.yaml \
   $phaseYAML \
   $modeltype \
@@ -24,13 +22,3 @@ bash run_nnPTRS.sh \
   $residualmode
   
 
-modelname=mlp_ptrs_2
-echo "On $modelname"
-bash run_nnPTRS.sh \
-  $GPUID \
-  $modelname$mysuffix \
-  /vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/$modelname.yaml \
-  $phaseYAML \
-  $modeltype \
-  $TRAINSET \
-  $residualmode

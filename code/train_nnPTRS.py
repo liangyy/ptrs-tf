@@ -148,6 +148,10 @@ if args.residual_mode is True:
     covariate_mode = False
 else:
     covariate_mode = True
+batch_size = args.batch_size
+logging.info(f'** In residual mode: REDO set batch size = {batch_size}')
+data_scheme.dataset = data_scheme.dataset.unbatch().batch(batch_size)
+
 
 # Prepare validation and insample Tensor
 logging.info('Prepare validation and insample Tensors')
@@ -188,6 +192,7 @@ for phase in phase_dic.keys():
         logging.info(f'@@ Phase {phase}: building optimizer and graph')
         optimizer = util_train.str2optimizer(phase_dic[phase]['optimizer'])
         mytrain = nn.train_func()
+        prev_opt = phase_dic[phase]['optimizer'] 
     
     # self, optimizer, num_epoch, ele_valid, normalizer = None, normalizer_valid = None, var_list = v, ele_insample = None, normalizer_insample = None
     logging.info('@@ Phase {}: start to run with optimizer {}'.format(phase, phase_dic[phase]['optimizer']))
@@ -203,4 +208,4 @@ for phase in phase_dic.keys():
     )
     
 logging.info('Saving final model')
-nn.minimal_save(args.output_prefix, '.final.h5')
+nn.minimal_save(args.output_prefix + '.final.h5')

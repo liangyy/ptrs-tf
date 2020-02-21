@@ -1,7 +1,9 @@
 # ARGS1: GPU ID
-# ARGS2: residual mode 
+# ARGS2: residual mode
+# ARGS3: suffix 
 
 residualmode=$2
+mysuffix=$3
 
 TRAINSET=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_British.hdf5
 GPUID=$1
@@ -14,7 +16,7 @@ modelname=baseline
 echo "On $modelname"
 bash run_nnPTRS.sh \
   $GPUID \
-  $modelname \
+  $modelname$mysuffix \
   $modelname \
   $phaseYAML \
   $modeltype \
