@@ -93,7 +93,7 @@ class kerasPTRS:
                 normalizer_insample = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele_insample, tensor = True)
                 return normalizer, normalizer_valid, normalizer_insample
         else:
-            return None, None
+            return None, None, None
     def train_func(self, var_list = None):
         if var_list is None:
             v = self.model.trainable_variables
@@ -131,8 +131,12 @@ class kerasPTRS:
                     inputs, y = self.data_scheme.get_data_matrix_x_in_cnn(ele)
                     if self.normalizer == True:
                         inputs = normalizer.apply(inputs)
+                    # _, yttt = self.model(inputs, training = False)  
+                    # loss0 = self._mse_loss_tf(y, yttt)
+                    # tf.print('loss0 = ', loss0)
                     step += 1
                     loss = self._train_one_step(optimizer, inputs, y, var_list)
+                    # tf.print('loss = ', loss, 'loss0 = ', loss0)
                     loss_agg = (loss_agg * counter + loss) / (counter + 1)
                     counter += 1
                 yp = self._predict(inputs_valid)
