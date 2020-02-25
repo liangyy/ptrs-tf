@@ -114,6 +114,15 @@ class kerasPTRS:
             #     normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
             #     normalizer_valid = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele_valid, tensor = True)
             inputs_valid, y_valid = self.data_scheme.get_data_matrix_x_in_cnn(ele_valid)
+            
+            # set all normalizer to be the same
+            if self.normalizer == True: 
+                if normalizer_insample is None:
+                    normalizer_insample = normalizer
+                if normalizer_valid is None:
+                    normalizer_valid = normalizer
+            # END
+            
             if self.normalizer == True:
                 inputs_valid = normalizer_valid.apply(inputs_valid)
             if self.normalizer == True and ele_insample is not None and normalizer_insample is None:
