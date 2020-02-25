@@ -71,17 +71,20 @@ class kerasPTRS:
     def _predict_x(self, inputs):
         _, y = self.model(inputs, training = False)   
         return y
-    def _ele_unpack(self, ele):
+    def _ele_unpack(self, ele, normalizer = None):
         inputs, y = self.data_scheme.get_data_matrix_x_in_cnn(ele)
         if self.normalizer == True:
-            normalizer_ = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele, tensor = True)
-            inputs = normalizer_.apply(inputs)
+            if normalizer is None:
+                normalizer_ = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, ele, tensor = True)
+                inputs = normalizer_.apply(inputs)
+            else:
+                inputs = normalizer.apply(inputs)
         return inputs, y
-    def predict(self, ele):
-        inputs, y = self._ele_unpack(ele)
+    def predict(self, ele, normalizer = None):
+        inputs, y = self._ele_unpack(ele, normalizer = normalizer)
         return self._predict(inputs), y
-    def predict_x(self, ele):
-        inputs, y = self._ele_unpack(ele)
+    def predict_x(self, ele, normalizer = None):
+        inputs, y = self._ele_unpack(ele, normalizer = normalizer)
         return self._predict_x(inputs), y   
     def prep_train(self, ele_valid, ele_insample = None):
         if self.normalizer == True:
@@ -109,6 +112,8 @@ class kerasPTRS:
             best_v_accuracy_x = 0.0
             loss_agg = 0.0
             counter = 0.0
+            loss_insample = 0.0
+            loss_valid = 0.0
             # work-around so that tf.function decoration works (.shape is not working in current tf2 version)
             # if self.normalizer == True:
             #     normalizer = FullNormalizer(self.data_scheme.get_data_matrix_x_in_cnn, self.data_scheme.dataset)
@@ -152,11 +157,13 @@ class kerasPTRS:
                 ypx = self._predict_x(inputs_valid)
                 valid_accuracy = self._mean_cor_tf(yp, y_valid)
                 valid_accuracy_x = self._mean_cor_tf(ypx, y_valid)
+                loss_valid = self._mse_loss_tf(yp, y_valid)
                 if ele_insample is not None:
                     ypx_in = self._predict_x(inputs_insample)
                     insample_accuracy_x = self._mean_cor_tf(ypx_in, y_insample)
+                    loss_insample = self._mse_loss_tf(self._predict(inputs_insample), y_insample)
                 # tf.print('@@@@ Epoch', epoch, ': loss', loss, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x, output_stream = log_path)
-                tf.py_function(self._print, ['@@@@ Epoch', epoch, ': loss', loss, ': agg loss', loss_agg, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x], [])
+                tf.py_function(self._print, ['@@@@ Epoch', epoch, ': loss_insample', loss_insample, ': loss_valid', loss_valid, ': agg loss', loss_agg, '; validation-accuracy:', valid_accuracy, '; validation-accurary-x', valid_accuracy_x, '; insample-accuracy-x', insample_accuracy_x], [])
                 if best_v_accuracy_x < valid_accuracy_x:
                     tf.py_function(self._print, ['@@@@ Saving model after current epoch', epoch], [])
                     best_v_accuracy_x = valid_accuracy_x
