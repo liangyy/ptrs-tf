@@ -106,9 +106,9 @@ data_scheme, sample_size = util_hdf5.build_data_scheme(
 data_scheme.x_indice = x_indice
 
 logging.info('Set validation and test set as the first and second splits')
-if args.residual_mode is True:
-    # save for future use
-    dataset_full = data_scheme.dataset
+# save for future use
+dataset_full = data_scheme.dataset
+# END
 dataset_valid = data_scheme.dataset.take(1)
 data_scheme.dataset = data_scheme.dataset.skip(1)
 dataset_test = data_scheme.dataset.take(1)
@@ -139,7 +139,7 @@ if args.residual_mode is True:
     ) 
 
     data_scheme.x_indice = x_indice
-
+    dataset_full = data_scheme.dataset
     dataset_valid = data_scheme.dataset.take(1)
     data_scheme.dataset = data_scheme.dataset.skip(1)
     dataset_test = data_scheme.dataset.take(1)
@@ -148,9 +148,9 @@ if args.residual_mode is True:
     covariate_mode = False
 else:
     covariate_mode = True
-batch_size = args.batch_size
-logging.info(f'** In residual mode: REDO set batch size = {batch_size}')
-data_scheme.dataset = data_scheme.dataset.unbatch().batch(batch_size)
+    batch_size = args.batch_size
+    logging.info(f'** In residual mode: REDO set batch size = {batch_size}')
+    data_scheme.dataset = data_scheme.dataset.unbatch().batch(batch_size)
 
 
 # Prepare validation and insample Tensor
@@ -176,7 +176,10 @@ nn.minimal_save(temp_placeholder)
 
 # Prepare normalizer
 logging.info('Pre-computing normalizer')
-norm, norm_v, norm_i = nn.prep_train(ele_valid, ele_insample) 
+dataset_original = nn.data_scheme.dataset
+nn.data_scheme.dataset = dataset_full
+norm, _, _ = nn.prep_train(ele_valid, ele_insample) 
+nn.data_scheme.dataset = dataset_original
 
 # Training
 logging.info('Prepare phase yaml')
@@ -202,9 +205,9 @@ for phase in phase_dic.keys():
         phase_dic[phase]['epoch'], 
         ele_valid, 
         normalizer = norm, 
-        normalizer_valid = norm_v, 
+        normalizer_valid = None, 
         ele_insample = ele_insample, 
-        normalizer_insample = norm_i
+        normalizer_insample = None
     )
     
 logging.info('Saving final model')

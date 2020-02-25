@@ -54,6 +54,12 @@ screen -dmS cnn bash submit_train_cnnPTRS_ctimp_whole_blood.screen 2 residual .w
 screen -dmS mlp bash submit_train_mlpPTRS_ctimp_whole_blood.screen 3 residual .with_adam > submit_train_mlpPTRS_ctimp_whole_blood.log 2>&1
 ```
 
-
+Running nnPTRS in residual mode with suffix
+ 
+```
+screen -dmS baseline bash submit_train_baselinePTRS_ctimp_whole_blood.screen 1 residual .with_adam_and_universal_normalizer 
+screen -dmS cnn bash submit_train_cnnPTRS_ctimp_whole_blood.screen 2 residual .with_adam_and_universal_normalizer 
+screen -dmS mlp bash submit_train_mlpPTRS_ctimp_whole_blood.screen 3 residual .with_adam_and_universal_normalizer 
+```
 
 
