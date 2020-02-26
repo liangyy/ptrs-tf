@@ -146,11 +146,11 @@ if args.residual_mode is True:
     data_scheme.dataset = data_scheme.dataset.skip(1)
     dataset_insample = data_scheme.dataset.take(1)
     covariate_mode = False
-else:
-    covariate_mode = True
     batch_size = args.batch_size
     logging.info(f'** In residual mode: REDO set batch size = {batch_size}')
     data_scheme.dataset = data_scheme.dataset.unbatch().batch(batch_size)
+else:
+    covariate_mode = True
 
 
 # Prepare validation and insample Tensor
