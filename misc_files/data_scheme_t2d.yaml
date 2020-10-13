@@ -28,5 +28,4 @@ covar_names:
   - age_squared_times_sex
 outcome_names:
   - t2d 
-  - hba1c
   
