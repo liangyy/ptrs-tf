@@ -1,0 +1,45 @@
+pheno_csv:
+  file_path: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/query_phenotypes_cleaned_up.csv'
+  sample_col: 'eid'
+  output_col:
+    - age_recruitment
+    - sex
+    - pc1
+    - pc2
+    - pc3
+    - pc4
+    - pc5
+    - pc6
+    - pc7
+    - pc8
+    - pc9
+    - pc10
+    - pc11
+    - pc12
+    - pc13
+    - pc14
+    - pc15
+    - pc16
+    - pc17
+    - pc18
+    - pc19
+    - pc20
+    - t2d
+    - hba1c
+    - age_squared
+    - age_times_sex
+    - age_squared_times_sex
+indiv_list:
+  lists:
+    African: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/African.txt'
+    Chinese: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/Chinese.txt'
+    Indian: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/Indian.txt'
+    British: '/vol/bmd/yanyul/UKB/predicted_expression_tf2/British.txt'
+  sample_col: 'IID'
+  sep: ' '
+pred_expr_hdf5:
+  # file_path: '/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_ctimp_Whole_Blood.h5'
+  dataset_sample: 'samples'
+  dataset_gene: 'genes'
+  pred_expr: 'pred_expr'
+  

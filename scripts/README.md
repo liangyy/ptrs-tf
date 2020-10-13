@@ -9,6 +9,14 @@ prefixout=ukb_imp_x_ctimp_Whole_Blood
 screen -dmS split-$prefixout bash run_split_pred_expr.screen $myhdf5 $myyaml $prefixout
 ```
 
+```
+# t2d traits
+myhdf5=/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_ctimp_Whole_Blood.h5
+myyaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/split_ptrs_ukb_t2d.yaml
+prefixout=ukb_imp_x_ctimp_Whole_Blood_t2d
+screen -dmS split-$prefixout bash run_split_pred_expr.screen $myhdf5 $myyaml $prefixout
+```
+
 * `run_least_squared.screen` 
 
 ```
