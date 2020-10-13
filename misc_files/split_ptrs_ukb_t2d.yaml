@@ -31,10 +31,10 @@ pheno_csv:
     - age_squared_times_sex
 indiv_list:
   lists:
-    African: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/African.txt'
-    Chinese: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/Chinese.txt'
-    Indian: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/Indian.txt'
-    British: '/vol/bmd/yanyul/UKB/predicted_expression_tf2/British.txt'
+    African: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/t2d_indiv_list.African.txt'
+    Chinese: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/t2d_indiv_list.Chinese.txt'
+    Indian: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/t2d_indiv_list.Indian.txt'
+    British: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/t2d_indiv_list.British.txt'
   sample_col: 'IID'
   sep: ' '
 pred_expr_hdf5:
