@@ -1,0 +1,31 @@
+X_index: 0
+Y_index: 1
+covar_names:
+  - age_recruitment
+  - sex
+  - pc1
+  - pc2
+  - pc3
+  - pc4
+  - pc5
+  - pc6
+  - pc7
+  - pc8
+  - pc9
+  - pc10
+  - pc11
+  - pc12
+  - pc13
+  - pc14
+  - pc15
+  - pc16
+  - pc17
+  - pc18
+  - pc19
+  - pc20
+  - age_squared
+  - age_times_sex
+  - age_squared_times_sex
+outcome_names:
+  - hba1c
+  

@@ -36,7 +36,7 @@ indiv_list:
     Indian: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/t2d_indiv_list.Indian.txt'
     British: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/t2d_indiv_list.British.txt'
   sample_col: 'IID'
-  sep: ' '
+  sep: "\t"
 pred_expr_hdf5:
   # file_path: '/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_ctimp_Whole_Blood.h5'
   dataset_sample: 'samples'
