@@ -2,7 +2,7 @@
 source /vol/bmd/yanyul/miniconda3/etc/profile.d/conda.sh
 conda activate tensorflow
 source /home/yanyul/tensorflow_env.sh
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=1
 
 thisdir=`pwd`
 
@@ -37,9 +37,10 @@ python train_ptrs.py \
   --out_prefix $OUTDIR/$tag \
   --size_of_data_to_hold $holdout_size \
   --data_hdf5 British:$train_hdf5 \
-  --against_hdf5 $against_hdf5 \
+  --against_hdf5 British:$against_hdf5 \
   --data_scheme_yaml $data_scheme \
   --prediction_model $pred_model \
   --data_hdf5_predict African:$af_hdf5 Chinese:$ch_hdf5 Indian:$in_hdf5 \
   --against_hdf5_predict African:$af_ag_hdf5 Chinese:$ch_ag_hdf5 Indian:$in_ag_hdf5 \
-  > $thisdir/pred_elastic_net_t2d_mesa.log 2>&1
+  > $thisdir/pred_elastic_net_hba1c_mesa.log 2>&1
+

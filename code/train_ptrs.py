@@ -131,6 +131,10 @@ if __name__ == '__main__':
             stage='test'
         )
         features, trait_indice = feature_tuple
+        if args.against_hdf5 is not None:
+            d_valid_aga, d_test_aga, d_insample_aga, x_indice, x_indice_aga = more_info
+        else:
+            x_indice = more_info
         model_list = {}
         for alpha in alpha_list:
             filename = args.prediction_model.format(alpha=alpha)
@@ -151,11 +155,10 @@ if __name__ == '__main__':
                     args.data_scheme_yaml, 
                     batch_size=batch_size_here, 
                     inv_norm_y=inv_y,
-                    x_indice=more_info
+                    x_indice=x_indice
                 )
                 dataset_dict[data_pred_name] = data_scheme.dataset
         if args.against_hdf5 is not None:
-            d_valid_aga, d_test_aga, d_insample_aga, x_indice, x_indice_aga = more_info
             dataset_aga_dict = {
                 f'{against_name}_valid': d_valid_aga,
                 f'{against_name}_test': d_test_aga,
@@ -172,7 +175,7 @@ if __name__ == '__main__':
                         inv_norm_y=inv_y,
                         x_indice=x_indice_aga
                     )
-                    dataset_aga_dict[data_pred_name] = data_scheme.dataset
+                    dataset_aga_dict[against_pred_name] = data_scheme.dataset
     
     if args.prediction_model is None:
         ### Training
@@ -231,7 +234,7 @@ if __name__ == '__main__':
         
         res = pd.concat(res_list, axis=0)
         
-        res.to_csv(args.out_prefix + '.perfermance.csv', index=False)
+        res.to_csv(args.out_prefix + '.performance.csv', index=False)
             
         
             

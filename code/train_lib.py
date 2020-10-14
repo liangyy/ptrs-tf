@@ -73,7 +73,7 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
                 inv_norm_y=inv_y,
                 x_indice=x_indice_against
             )
-            dataset_valid_aga, dataset_test_aga, dataset_insample_aga, _ = split_dataset_into_test_and_valid(data_scheme_against)
+            _, dataset_valid_aga, dataset_test_aga, dataset_insample_aga = split_dataset_into_test_and_valid(data_scheme_against)
             return dataset_valid, dataset_test, dataset_insample, (features, trait_indice), (dataset_valid_aga, dataset_test_aga, dataset_insample_aga, x_indice_target, x_indice_against)
             
 def split_dataset_into_test_and_valid(data_scheme):
@@ -83,3 +83,4 @@ def split_dataset_into_test_and_valid(data_scheme):
     data_scheme.dataset = data_scheme.dataset.skip(1)
     dataset_insample = data_scheme.dataset.take(1)
     return data_scheme, dataset_valid, dataset_test, dataset_insample
+
