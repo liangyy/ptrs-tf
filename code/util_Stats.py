@@ -1,6 +1,6 @@
 import scipy.stats
 import numpy as np
-from sklearn.metrics import log_loss
+from sklearn.metrics import log_loss, roc_auc_score
 import statsmodels.api as sm
 
 def inv_norm_col(mat, exclude_idx = None):
@@ -100,7 +100,7 @@ def _quick_partial_r2_check_dim(x, y, yp):
         raise ValueError('Wrong dim-2 in y, yp do not match')
     return ix, jx, ky, pyp
 
-def logistic_partial_r2(x, y, yhat):
+def binary_perf(x, y, yhat, func=calc_partial_r2_logistic):
     '''
     x: covariate
     y: y observed 
@@ -132,7 +132,7 @@ def logistic_partial_r2(x, y, yhat):
         for pi in range(p):
             yp = yhat[:, ki, pi]
             yo = y[:, ki]
-            partial_r2[ki, pi] = calc_partial_r2_logistic(yp, yo, x_)
+            partial_r2[ki, pi] = func(yp, yo, x_)
     return partial_r2
 
 def round_y_to_binary(y):
@@ -154,5 +154,7 @@ def calc_partial_r2_logistic(yp, yo, covar):
     tmp = np.concatenate((covar, yp), axis=1)
     lld1 = get_logistic_lld(yo, tmp)
     return 1 - lld1 / lld0
-            
+
+def calc_auc(yp, yo):
+    return roc_auc_score(yp, yo)        
     

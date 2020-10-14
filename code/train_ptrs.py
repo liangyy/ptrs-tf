@@ -28,7 +28,7 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False):
             if binary is False:
                 partial_r2[alpha][i] = util_Stats.quick_partial_r2(covar, out['y'], out['y_pred_from_x'])
             else:
-                partial_r2[alpha][i] = util_Stats.logistic_partial_r2(covar, out['y'], out['y_pred_from_x'])
+                partial_r2[alpha][i] = util_Stats.binary_perf(covar, out['y'], out['y_pred_from_x'], func=calc_auc)
     res_list = []
     df = pd.DataFrame({'partial_r2': [], 'trait': [], 'sample': [], 'alpha': [], 'lambda': []})
     for alpha in alpha_list:
@@ -36,6 +36,8 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False):
         lambda_i = np.array(model_i.lambda_seq)
         for i in partial_r2[alpha].keys():
             df = pd.concat((df, _pr2_format(partial_r2[alpha][i], features[trait_indice], i, alpha, lambda_i)))
+    if binary is True:
+        df.rename(columns={'partial_r2': 'roc_auc'}, inplace=True)
     return df
 
 if __name__ == '__main__':
@@ -228,7 +230,7 @@ if __name__ == '__main__':
         
         res = pd.concat(res_list, axis=0)
         
-        res.to_csv(args.out_prefix + '.partial_r2.csv', index=False)
+        res.to_csv(args.out_prefix + '.perfermance.csv', index=False)
             
         
             
