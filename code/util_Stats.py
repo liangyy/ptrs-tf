@@ -1,5 +1,8 @@
 import scipy.stats
 import numpy as np
+from sklearn.metrics import log_loss
+import statsmodels.api as sm
+
 def inv_norm_col(mat, exclude_idx = None):
     if exclude_idx is None:
         return np.apply_along_axis(inv_norm_vec, 0, mat)
@@ -96,3 +99,60 @@ def _quick_partial_r2_check_dim(x, y, yp):
     if ky != kyp:
         raise ValueError('Wrong dim-2 in y, yp do not match')
     return ix, jx, ky, pyp
+
+def logistic_partial_r2(x, y, yhat):
+    '''
+    x: covariate
+    y: y observed 
+    yhat: y predicted
+    Fit:
+    * model0: yobs ~ 1 + covariate
+    * model1: yobs ~ 1 + covariate + ypred
+    * partial_R2: 1 - lld1 / lld0
+    x: 
+        i = sample id
+        j = covariate id
+    y: 
+        i = sample id
+        k = outcome id
+    yhat:
+        i = sample id
+        k = outcome id
+        p = predictor id
+    '''
+    i, j, k, p = _quick_partial_r2_check_dim(x, y, yhat)
+    # add intercept
+    x_ = np.concatenate(
+        (np.ones(shape = (i, 1)), x),
+        axis = 1
+    )
+    y_round = round_y_to_binary(y)
+    partial_r2 = np.zeros((k, p))
+    for ki in range(k):
+        for pi in range(p):
+            yp = yhat[:, ki, pi]
+            yo = y[:, ki]
+            partial_r2[ki, pi] = calc_partial_r2_logistic(yp, yo, x_)
+    return partial_r2
+
+def round_y_to_binary(y):
+    yround = np.round_(y)
+    n_not_binary = np.logical_not(np.logical_or(yround == 0, yround == 1))
+    if n_not_binary != 0:
+        raise ValueError("We need y to be binary 0/1. But there are {} not following the rule.".format())
+    return yround
+
+def get_logistic_lld(y, x):
+    mod = sm.Logit(y, x)
+    res = mod.fit(method='newton')
+    yp = res.predict(x)
+    return log_loss(y, yp)
+    
+def calc_partial_r2_logistic(yp, yo, covar):
+    # log_loss returns -log likelihood / nsample
+    lld0 = get_logistic_lld(yo, covar)
+    tmp = np.concatenate((covar, yp), axis=1)
+    lld1 = get_logistic_lld(yo, tmp)
+    return 1 - lld1 / lld0
+            
+    

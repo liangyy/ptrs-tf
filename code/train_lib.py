@@ -6,7 +6,7 @@ import h5py, yaml, functools
 
 
 def prep_dataset_from_hdf5(input_hdf5, data_scheme_yaml, 
-batch_size, logging, against_hdf5=None, inv_y=True, stage='train'):
+batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_against=False):
     
     x_indice = None
     if against_hdf5 is not None:
@@ -61,11 +61,25 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train'):
         
     
     elif stage == 'test':
-        dataset_valid = data_scheme.dataset.take(1)
-        data_scheme.dataset = data_scheme.dataset.skip(1)
-        dataset_test = data_scheme.dataset.take(1)
-        data_scheme.dataset = data_scheme.dataset.skip(1)
-        dataset_insample = data_scheme.dataset.take(1)
+        dataset_valid, dataset_test, dataset_insample, _ = split_dataset_into_test_and_valid(data_scheme)
         
-        return dataset_valid, dataset_test, dataset_insample
-    
+        if return_against is False or against_hdf5 is None:
+            return dataset_valid, dataset_test, dataset_insample, x_indice
+        else:
+            data_scheme_against, sample_size_against = util_hdf5.build_data_scheme(
+                against_hdf5, 
+                data_scheme_yaml, 
+                batch_size=batch_size_to_load, 
+                inv_norm_y=inv_y,
+                x_indice=x_indice_against
+            )
+            dataset_valid_aga, dataset_test_aga, dataset_insample_aga, _ = split_dataset_into_test_and_valid(data_scheme_against)
+            return dataset_valid, dataset_test, dataset_insample, (dataset_valid_aga, dataset_test_aga, dataset_insample_aga, x_indice_target, x_indice_against)
+            
+def split_dataset_into_test_and_valid(data_scheme):
+    dataset_valid = data_scheme.dataset.take(1)
+    data_scheme.dataset = data_scheme.dataset.skip(1)
+    dataset_test = data_scheme.dataset.take(1)
+    data_scheme.dataset = data_scheme.dataset.skip(1)
+    dataset_insample = data_scheme.dataset.take(1)
+    return data_scheme, dataset_valid, dataset_test, dataset_insample
