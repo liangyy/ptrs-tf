@@ -14,7 +14,7 @@ cd $WORKDIR
 holdout_size=4096
 train_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_t2d_British.hdf5
 data_scheme=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/data_scheme_t2d.yaml
-pred_model=/vol/bmd/yanyul/UKB/ptrs-tf/models/elastic_net_t2d_ptrs_mesa_british_{alpha}.hdf5
+pred_model=/vol/bmd/yanyul/UKB/ptrs-tf/models/elastic_net_t2d_ptrs_gtex_british_{alpha}.hdf5
 af_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_t2d_African.hdf5
 ch_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_t2d_Chinese.hdf5
 in_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_t2d_Indian.hdf5

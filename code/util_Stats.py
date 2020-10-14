@@ -137,7 +137,7 @@ def binary_perf(x, y, yhat, func):
 
 def round_y_to_binary(y):
     yround = np.round_(y)
-    n_not_binary = np.logical_not(np.logical_or(yround == 0, yround == 1))
+    n_not_binary = np.logical_not(np.logical_or(yround == 0, yround == 1)).sum()
     if n_not_binary != 0:
         raise ValueError("We need y to be binary 0/1. But there are {} not following the rule.".format())
     return yround
@@ -155,6 +155,8 @@ def calc_partial_r2_logistic(yp, yo, covar):
     lld1 = get_logistic_lld(yo, tmp)
     return 1 - lld1 / lld0
 
-def calc_auc(yp, yo):
-    return roc_auc_score(yp, yo)        
+def calc_auc(yp, yo, placeholder):
+    if yo.sum() == 0:
+        return np.nan
+    return roc_auc_score(yo, yp)        
     
