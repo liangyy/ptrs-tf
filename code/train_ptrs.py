@@ -109,24 +109,31 @@ if __name__ == '__main__':
     ### Load data
     alpha_list = args.alpha_seq
     inv_y = not args.no_inv_y
+    data_name, data_hdf5 = parse_data_args(args.data_hdf5)
+    if args.against_hdf5 is not None:
+        against_name, against_hdf5 = parse_data_args(args.against_hdf5)
+    else:
+        against_hdf5 = None
+
     if args.prediction_model is None:
         data_scheme, ntrain, train_batch = prep_dataset_from_hdf5(
-            args.data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
+            data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
             against_hdf5=args.against_hdf5, inv_y=inv_y
         )
     else:
-        d_valid, d_test, d_insample, more_info = prep_dataset_from_hdf5(
-            args.data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
+
+        d_valid, d_test, d_insample, feature_tuple, more_info = prep_dataset_from_hdf5(
+            data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
             against_hdf5=args.against_hdf5, inv_y=inv_y, return_against=True,
             stage='test'
         )
+        features, trait_indice = feature_tuple
         model_list = {}
         for alpha in alpha_list:
             filename = args.prediction_model.format(alpha=alpha)
             model_list[alpha] = lib_LinearAlgebra.ElasticNetEstimator('', None, minimal_load=True)
             model_list[alpha].minimal_load(filename)
         
-        data_name, data_hdf5 = parse_data_args(args.data_hdf5)
         dataset_dict = {
             f'{data_name}_valid': d_valid,
             f'{data_name}_test': d_test,
@@ -145,7 +152,6 @@ if __name__ == '__main__':
                 )
                 dataset_dict[data_pred_name] = data_scheme.dataset
         if args.against_hdf5 is not None:
-            against_name, against_hdf5 = parse_data_args(args.against_hdf5)
             d_valid_aga, d_test_aga, d_insample_aga, x_indice, x_indice_aga = more_info
             dataset_aga_dict = {
                 f'{against_name}_valid': d_valid_aga,
@@ -222,7 +228,7 @@ if __name__ == '__main__':
         
         res = pd.concat(res_list, axis=0)
         
-        res.to_csv(args.out_prefix, '.partial_r2.csv', index=False)
+        res.to_csv(args.out_prefix + '.partial_r2.csv', index=False)
             
         
             

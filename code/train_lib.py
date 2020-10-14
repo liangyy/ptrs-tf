@@ -61,10 +61,10 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
         
     
     elif stage == 'test':
-        dataset_valid, dataset_test, dataset_insample, _ = split_dataset_into_test_and_valid(data_scheme)
+        _, dataset_valid, dataset_test, dataset_insample = split_dataset_into_test_and_valid(data_scheme)
         
         if return_against is False or against_hdf5 is None:
-            return dataset_valid, dataset_test, dataset_insample, x_indice
+            return dataset_valid, dataset_test, dataset_insample, (features, trait_indice), x_indice
         else:
             data_scheme_against, sample_size_against = util_hdf5.build_data_scheme(
                 against_hdf5, 
@@ -74,7 +74,7 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
                 x_indice=x_indice_against
             )
             dataset_valid_aga, dataset_test_aga, dataset_insample_aga, _ = split_dataset_into_test_and_valid(data_scheme_against)
-            return dataset_valid, dataset_test, dataset_insample, (dataset_valid_aga, dataset_test_aga, dataset_insample_aga, x_indice_target, x_indice_against)
+            return dataset_valid, dataset_test, dataset_insample, (features, trait_indice), (dataset_valid_aga, dataset_test_aga, dataset_insample_aga, x_indice_target, x_indice_against)
             
 def split_dataset_into_test_and_valid(data_scheme):
     dataset_valid = data_scheme.dataset.take(1)
