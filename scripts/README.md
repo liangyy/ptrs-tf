@@ -15,6 +15,18 @@ myhdf5=/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_c
 myyaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/split_ptrs_ukb_t2d.yaml
 prefixout=ukb_imp_x_ctimp_Whole_Blood_t2d
 screen -dmS split-$prefixout bash run_split_pred_expr.screen $myhdf5 $myyaml $prefixout
+
+# mesa cau
+myhdf5=/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_CAU.h5
+myyaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/split_ptrs_ukb_t2d.yaml
+prefixout=ukb_imp_x_MESA_CAU_t2d
+screen -dmS split-$prefixout bash run_split_pred_expr.screen $myhdf5 $myyaml $prefixout
+
+# mesa afhi
+myhdf5=/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_AFHI.h5
+myyaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/split_ptrs_ukb_t2d.yaml
+prefixout=ukb_imp_x_MESA_AFHI_t2d
+screen -dmS split-$prefixout bash run_split_pred_expr.screen $myhdf5 $myyaml $prefixout
 ```
 
 * `run_least_squared.screen` 
