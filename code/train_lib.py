@@ -1,4 +1,4 @@
-import util_ElasticNet, lib_LinearAlgebra, util_hdf5, lib_ElasticNet, lib_Checker, util_Stats
+import util_ElasticNet, lib_LinearAlgebra, util_hdf5, lib_ElasticNet, lib_Checker, util_Stats, util_misc
 import tensorflow as tf
 import numpy as np
 import pandas as pd
