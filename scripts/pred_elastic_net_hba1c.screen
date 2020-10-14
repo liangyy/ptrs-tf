@@ -33,4 +33,4 @@ python train_ptrs.py \
   --data_scheme_yaml $data_scheme \
   --prediction_model $pred_model \
   --data_hdf5_predict African:$af_hdf5 Chinese:$ch_hdf5 Indian:$in_hdf5 \
-  --no_inv_y > $thisdir/pred_elastic_net_hba1c.log 2>&1
+  > $thisdir/pred_elastic_net_hba1c.log 2>&1

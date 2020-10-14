@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import util_Stats
+from util_Stats import calc_auc
 
 def parse_data_args(args):
     return args.split(':')

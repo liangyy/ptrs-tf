@@ -100,7 +100,7 @@ def _quick_partial_r2_check_dim(x, y, yp):
         raise ValueError('Wrong dim-2 in y, yp do not match')
     return ix, jx, ky, pyp
 
-def binary_perf(x, y, yhat, func=calc_partial_r2_logistic):
+def binary_perf(x, y, yhat, func):
     '''
     x: covariate
     y: y observed 
