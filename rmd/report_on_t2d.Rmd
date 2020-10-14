@@ -11,7 +11,7 @@ panderOptions('table.split.table', Inf)
 theme_set(theme_bw(base_size=12))
 source('https://gist.githubusercontent.com/liangyy/43912b3ecab5d10c89f9d4b2669871c9/raw/8151c6fe70e3d4ee43d9ce340ecc0eb65172e616/my_ggplot_theme.R')
 th$panel.border = element_rect(colour = th$axis.line$colour)
-color_mixer = c('African' = '#E74C3C', 'British_test' = '#28B463', 'British_validation' = '#D4AC0D', 'Chinese' = '#3498DB', 'Indian' = '#9B59B6', 'British_insample' = '#AAB7B8')
+color_mixer = c('African' = '#E74C3C', 'British_test' = '#28B463', 'British_valid' = '#D4AC0D', 'Chinese' = '#3498DB', 'Indian' = '#9B59B6', 'British_insample' = '#AAB7B8')
 my_parser = function(x) {
   as.numeric(stringr::str_remove(x, 'pval_'))
 }
@@ -20,43 +20,57 @@ my_parser = function(x) {
 # Overview
 
 Here we implemented elastic net based PTRS predictor along regularization path. 
-We are interested in the performance of EN PTRS as compared to PTRS based on least squares and PTRS based on S-PrediXcan.
+We trained PTRS using self reported T2D status and HbA1c concentration.
+For the binary trait, we train elastic net encoding case as 1 and control as 0 and fit MSE objective.
 
 # Load data
 
 ```{r data}
-df_en = read.table('~/Desktop/tmp/ptrs-tf/from_nucleus/partial_r2-elastic_net_t2d_British.tsv', header = T, sep = '\t', stringsAsFactors = F)
-lambda_seq_t2d = unique(df_en$lambda[df_en$trait == 't2d'])
-df_en = df_en[ !is.na(df_en$partial_r2), ] %>% filter(trait != 't2d')
+pred_models = c('gtex', 'mesa')
+traits = c('t2d', 'hba1c')
+df = list()
+for(tt in traits) {
+  dfi = list()
+  for(pred_expr in pred_models) {
+    tmp = paste0('~/Desktop/tmp/ptrs-tf/from_nucleus/elastic_net_', tt, '_ptrs_', pred_expr, '_british.performance.csv')
+    tmp = read.csv(tmp, stringsAsFactors = F)
+    to_replace = tmp$pred_expr_source
+    to_replace[tmp$pred_expr_source == 'train'] = 'EUR'
+    to_replace[tmp$pred_expr_source != 'train'] = 'AFHI'
+    tmp$pop = to_replace
+    dfi[[length(dfi) + 1]] = tmp[!is.na(tmp[, 1]), ] %>% mutate(type = paste0(pred_expr, '\n', pop))
+  }
+  df[[tt]] = do.call(rbind, dfi)
+}
 ```
 
 # EN PTRS along regularization path (HbA1c)
 
 ```{r en, fig.width=6, fig.height=4}
-df_en %>% filter(sample != 'British_insample') %>% ggplot() + geom_path(aes(x = log(lambda), y = partial_r2, color = sample)) + facet_grid(trait~alpha, scales = 'free_y') + th + 
+df$hba1c %>% ggplot() + geom_path(aes(x = log(lambda), y = partial_r2, color = sample)) + facet_grid(type~alpha, scales = 'free_y') + th + 
   theme(legend.position = 'bottom') + 
   scale_color_manual(values = color_mixer) + 
   ggtitle('EN PTRS HbA1c')
 ```
 
-# Predicted score for T2D (British validaiton)
+# EN PTRS along regularization path (T2D)
 
-```{r}
-library(reticulate)
-np = import('numpy')
-yobs = np$load('/Users/yanyul/Desktop/tmp/ptrs-tf/from_nucleus/results_on_ptrs_en_t2d_british_validation_y.npy')
-ypred = np$load('/Users/yanyul/Desktop/tmp/ptrs-tf/from_nucleus/results_on_ptrs_en_t2d_british_validation_pred.npy')
-eid = np$load('/Users/yanyul/Desktop/tmp/ptrs-tf/from_nucleus/results_on_ptrs_en_t2d_british_validation_eid.npy')
+```{r, fig.width=6, fig.height=4}
+df$t2d %>% ggplot() + geom_path(aes(x = log(lambda), y = roc_auc, color = sample)) + facet_grid(type~alpha, scales = 'free_y') + th + 
+  theme(legend.position = 'bottom') + 
+  scale_color_manual(values = color_mixer) + 
+  ggtitle('EN PTRS T2D')
 ```
 
+# Best performance along regularization
 
-```{r}
-dat = read.csv('~/Documents/repo/github/ptrs-ukb/output/t2d_query_cleaned_up.csv') %>% select(t2d, eid)
-dat$eid = as.character(dat$eid)
-df_t2d = data.frame(eid = eid[1:4096])
-df_t2d = inner_join(df_t2d, dat, by = 'eid')
-df_t2d = cbind(df_t2d, ypred[, 1, ])
-colnames(df_t2d) = c('eid', 't2d', paste0('lambda', 1 : length(lambda_seq_t2d)))
-df_t2d %>% reshape2::melt(id.var = c('t2d', 'eid')) %>% ggplot() + geom_boxplot(aes(x = variable, y = value, color = as.character(t2d))) + theme(legend.position = 'none')
+```{r, fig.width=9, fig.height=4}
+df_best = rbind(
+  df$hba1c %>% filter(sample != 'British_insample') %>% group_by(sample, type, trait) %>% 
+    summarize(best_perf = max(partial_r2)) %>% ungroup(),
+  df$t2d %>% filter(sample != 'British_insample') %>% group_by(sample, type, trait) %>% 
+    summarize(best_perf = max(roc_auc)) %>% ungroup()
+)
+df_best %>% ggplot() + geom_bar(aes(x = sample, y = best_perf, fill = type), stat = 'identity', position = 'dodge') + facet_wrap(~trait, scales = 'free_y') + th +
+  theme(legend.position = 'bottom')
 ```
-
