@@ -121,13 +121,13 @@ if __name__ == '__main__':
     if args.prediction_model is None:
         data_scheme, ntrain, train_batch = prep_dataset_from_hdf5(
             data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
-            against_hdf5=args.against_hdf5, inv_y=inv_y
+            against_hdf5=against_hdf5, inv_y=inv_y
         )
     else:
 
         d_valid, d_test, d_insample, feature_tuple, more_info = prep_dataset_from_hdf5(
             data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
-            against_hdf5=args.against_hdf5, inv_y=inv_y, return_against=True,
+            against_hdf5=against_hdf5, inv_y=inv_y, return_against=True,
             stage='test'
         )
         features, trait_indice = feature_tuple
