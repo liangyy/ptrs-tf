@@ -27,6 +27,9 @@ if __name__ == '__main__':
     parser.add_argument('--no_inv_y', action='store_true', help='''
         If specified, will not apply inverse normalization to y.
     ''')
+    parser.add_argument('--against_hdf5', default=None, help='''
+        Specify another HDF5 data where we will take the intersection of x as predictor.
+    ''')
     args = parser.parse_args()
  
     import logging, time, sys, os
@@ -39,10 +42,13 @@ if __name__ == '__main__':
     )
     
     from train_lib import prep_dataset_from_hdf5
-    
+    import util_ElasticNet, lib_LinearAlgebra, util_hdf5, lib_ElasticNet, lib_Checker
+    import tensorflow as tf
+    import functools
+
     ### Load data
-    inv_y = ~ args.no_inv_y
-    data_scheme = prep_dataset_from_hdf5(
+    inv_y = not args.no_inv_y
+    data_scheme, ntrain, train_batch = prep_dataset_from_hdf5(
         args.data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
         against_hdf5=args.against_hdf5, inv_y=inv_y
     )

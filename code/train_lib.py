@@ -33,13 +33,14 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train'):
     
     # load data_scheme for training
     batch_size_to_load = batch_size
-    logging.info(f'batch_size in {population} set is {batch_size_to_load}')
+    logging.info(f'batch_size in training set is {batch_size_to_load}')
+    
     data_scheme, sample_size = util_hdf5.build_data_scheme(
         input_hdf5, 
         data_scheme_yaml, 
         batch_size=batch_size_to_load, 
         inv_norm_y=inv_y,
-        x_indice = x_indice_cau
+        x_indice=x_indice
     )
     
     if stage == 'train':
@@ -56,7 +57,7 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train'):
         train_batch = batch_size
         logging.info(f'train_batch = {train_batch}, ntrain = {ntrain}')
         
-        return data_scheme
+        return data_scheme, ntrain, train_batch
         
     
     elif stage == 'test':

@@ -4,6 +4,8 @@ conda activate tensorflow
 source /home/yanyul/tensorflow_env.sh
 export CUDA_VISIBLE_DEVICES=0
 
+thisdir=`pwd`
+
 # pre-specifics
 WORKDIR=/vol/bmd/yanyul/GitHub/ptrs-tf/code
 cd $WORKDIR
@@ -24,4 +26,4 @@ python train_ptrs.py \
   --size_of_data_to_hold $holdout_size \
   --data_hdf5 $train_hdf5 \
   --data_scheme_yaml $data_scheme \
-  > run_elastic_net_hba1c.log 2>&1
+  > $thisdir/run_elastic_net_hba1c.log 2>&1

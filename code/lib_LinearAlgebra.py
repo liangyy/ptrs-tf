@@ -457,6 +457,8 @@ class LeastSquaredEstimator:
         with h5py.File(filename, 'w') as f:
             for i in save_dic.keys():
                 print('Saving {}'.format(i))
+                if i == 'data_scheme.x_indice' and save_dic[i] is None:
+                    continue
                 f.create_dataset(i, data = save_dic[i])
     def minimal_load(self, filename):
         '''
@@ -747,6 +749,8 @@ class ElasticNetEstimator:
         with h5py.File(filename, 'w') as f:
             for i in save_dic.keys():
                 print('Saving {}'.format(i))
+                if i == 'data_scheme.x_indice' and save_dic[i] is None:
+                    continue
                 f.create_dataset(i, data = save_dic[i])
     def minimal_load(self, filename):
         '''
