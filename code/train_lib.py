@@ -1,3 +1,4 @@
+import os
 import util_ElasticNet, lib_LinearAlgebra, util_hdf5, lib_ElasticNet, lib_Checker, util_Stats, util_misc
 import tensorflow as tf
 import numpy as np
@@ -75,7 +76,13 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
             )
             _, dataset_valid_aga, dataset_test_aga, dataset_insample_aga = split_dataset_into_test_and_valid(data_scheme_against)
             return dataset_valid, dataset_test, dataset_insample, (features, trait_indice), (dataset_valid_aga, dataset_test_aga, dataset_insample_aga, x_indice_target, x_indice_against)
-            
+    
+    elif stage == 'export':
+        gene_list = genes_target[data_scheme.get_indice_x()]
+        trait_list = features[data_scheme.outcome_indice]
+        covar_list = features[data_scheme.covariate_indice]
+        return gene_list, trait_list, covar_list
+        
 def split_dataset_into_test_and_valid(data_scheme):
     dataset_valid = data_scheme.dataset.take(1)
     data_scheme.dataset = data_scheme.dataset.skip(1)
@@ -84,3 +91,15 @@ def split_dataset_into_test_and_valid(data_scheme):
     dataset_insample = data_scheme.dataset.take(1)
     return data_scheme, dataset_valid, dataset_test, dataset_insample
 
+
+def save_list(mylist, output):
+    with open(output, 'w') as f:
+        for l in mylist:
+            f.write(l + '\n')
+
+def gen_dir(dirname):
+    if not os.path.exists(dirname):
+        os.mkdir(dirname)
+        print("Directory " , dirname ,  " Created ")
+    else:    
+        print("Directory " , dirname ,  " already exists")

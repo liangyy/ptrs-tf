@@ -92,6 +92,9 @@ if __name__ == '__main__':
         If specified, it will treat the yobs as binary values.
         And do partial R2 calculation based on logistic regression.
     ''')
+    parser.add_argument('--export', action='store_true', help='''
+        If specified, it will export the --prediction_model into TXT format.
+    ''')
     args = parser.parse_args()
  
     import logging, time, sys, os
@@ -124,58 +127,65 @@ if __name__ == '__main__':
             against_hdf5=against_hdf5, inv_y=inv_y
         )
     else:
-
-        d_valid, d_test, d_insample, feature_tuple, more_info = prep_dataset_from_hdf5(
-            data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
-            against_hdf5=against_hdf5, inv_y=inv_y, return_against=True,
-            stage='test'
-        )
-        features, trait_indice = feature_tuple
-        if args.against_hdf5 is not None:
-            d_valid_aga, d_test_aga, d_insample_aga, x_indice, x_indice_aga = more_info
-        else:
-            x_indice = more_info
-        model_list = {}
-        for alpha in alpha_list:
-            filename = args.prediction_model.format(alpha=alpha)
-            model_list[alpha] = lib_LinearAlgebra.ElasticNetEstimator('', None, minimal_load=True)
-            model_list[alpha].minimal_load(filename)
-        
-        dataset_dict = {
-            f'{data_name}_valid': d_valid,
-            f'{data_name}_test': d_test,
-            f'{data_name}_insample': d_insample
-        }
-        if args.data_hdf5_predict is not None:
-            batch_size_here = 8096
-            for data_pred in args.data_hdf5_predict:
-                data_pred_name, data_pred_hdf5 = parse_data_args(data_pred)
-                data_scheme, _ = util_hdf5.build_data_scheme(
-                    data_pred_hdf5, 
-                    args.data_scheme_yaml, 
-                    batch_size=batch_size_here, 
-                    inv_norm_y=inv_y,
-                    x_indice=x_indice
-                )
-                dataset_dict[data_pred_name] = data_scheme.dataset
-        if args.against_hdf5 is not None:
-            dataset_aga_dict = {
-                f'{against_name}_valid': d_valid_aga,
-                f'{against_name}_test': d_test_aga,
-                f'{against_name}_insample': d_insample_aga
+        if args.export is False:
+            d_valid, d_test, d_insample, feature_tuple, more_info = prep_dataset_from_hdf5(
+                data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
+                against_hdf5=against_hdf5, inv_y=inv_y, return_against=True,
+                stage='test'
+            )
+            features, trait_indice = feature_tuple
+            if args.against_hdf5 is not None:
+                d_valid_aga, d_test_aga, d_insample_aga, x_indice, x_indice_aga = more_info
+            else:
+                x_indice = more_info
+            model_list = {}
+            for alpha in alpha_list:
+                filename = args.prediction_model.format(alpha=alpha)
+                model_list[alpha] = lib_LinearAlgebra.ElasticNetEstimator('', None, minimal_load=True)
+                model_list[alpha].minimal_load(filename)
+            
+            dataset_dict = {
+                f'{data_name}_valid': d_valid,
+                f'{data_name}_test': d_test,
+                f'{data_name}_insample': d_insample
             }
-            if args.against_hdf5_predict is not None:
+            if args.data_hdf5_predict is not None:
                 batch_size_here = 8096
-                for against_pred in args.against_hdf5_predict:
-                    against_pred_name, against_pred_hdf5 = parse_data_args(against_pred)
+                for data_pred in args.data_hdf5_predict:
+                    data_pred_name, data_pred_hdf5 = parse_data_args(data_pred)
                     data_scheme, _ = util_hdf5.build_data_scheme(
-                        against_pred_hdf5, 
+                        data_pred_hdf5, 
                         args.data_scheme_yaml, 
                         batch_size=batch_size_here, 
                         inv_norm_y=inv_y,
-                        x_indice=x_indice_aga
+                        x_indice=x_indice
                     )
-                    dataset_aga_dict[against_pred_name] = data_scheme.dataset
+                    dataset_dict[data_pred_name] = data_scheme.dataset
+            if args.against_hdf5 is not None:
+                dataset_aga_dict = {
+                    f'{against_name}_valid': d_valid_aga,
+                    f'{against_name}_test': d_test_aga,
+                    f'{against_name}_insample': d_insample_aga
+                }
+                if args.against_hdf5_predict is not None:
+                    batch_size_here = 8096
+                    for against_pred in args.against_hdf5_predict:
+                        against_pred_name, against_pred_hdf5 = parse_data_args(against_pred)
+                        data_scheme, _ = util_hdf5.build_data_scheme(
+                            against_pred_hdf5, 
+                            args.data_scheme_yaml, 
+                            batch_size=batch_size_here, 
+                            inv_norm_y=inv_y,
+                            x_indice=x_indice_aga
+                        )
+                        dataset_aga_dict[against_pred_name] = data_scheme.dataset
+        else:
+            gene_list, trait_list, covar_list = prep_dataset_from_hdf5(
+                data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
+                against_hdf5=against_hdf5, inv_y=inv_y,
+                stage='export'
+            )
+            
     
     if args.prediction_model is None:
         ### Training
@@ -208,35 +218,60 @@ if __name__ == '__main__':
             checker = [ lib_Checker.Checker(ntrain, train_batch, lib_Checker.my_stat_fun, my_stop_rule) 
                        for i in range(ny) ]
 
-            elastic_net_estimator.solve(checker, nepoch=100, logging = logging)
+            elastic_net_estimator.solve(checker, nepoch=100, logging=logging)
             
             outfile = f'{out_prefix}_{alpha}.hdf5'
             logging.info(f'alpha = {alpha} saving to {outfile}')
             elastic_net_estimator.minimal_save(outfile)
             logging.info('alpha = {} ends'.format(alpha))
     else:
-        ### Predict and get partial r2
-        ### Do data_hdf5 first and then do against_hdf5 if needed
-        res_list = []
-        df = get_partial_r2(alpha_list, model_list, dataset_dict, binary=args.binary)
-        df['pred_expr_source'] = 'train'
-        res_list.append(df)
-        
-        ### Then do against_hdf5
-        if args.against_hdf5 is not None:
-            # we need to first change the order of data to be loaded to match the against. 
-            for alpha in alpha_list:
-                model_list[alpha].data_scheme.x_indice = x_indice_aga
-            
-            df = get_partial_r2(alpha_list, model_list, dataset_aga_dict, binary=args.binary)
-            df['pred_expr_source'] = 'against'
+        if args.export is False:
+            ### Predict and get partial r2
+            ### Do data_hdf5 first and then do against_hdf5 if needed
+            res_list = []
+            df = get_partial_r2(alpha_list, model_list, dataset_dict, binary=args.binary)
+            df['pred_expr_source'] = 'train'
             res_list.append(df)
-        
-        res = pd.concat(res_list, axis=0)
-        
-        res.to_csv(args.out_prefix + '.performance.csv', index=False)
             
-        
+            ### Then do against_hdf5
+            if args.against_hdf5 is not None:
+                # we need to first change the order of data to be loaded to match the against. 
+                for alpha in alpha_list:
+                    model_list[alpha].data_scheme.x_indice = x_indice_aga
+                
+                df = get_partial_r2(alpha_list, model_list, dataset_aga_dict, binary=args.binary)
+                df['pred_expr_source'] = 'against'
+                res_list.append(df)
             
+            res = pd.concat(res_list, axis=0)
+            
+            res.to_csv(args.out_prefix + '.performance.csv', index=False)
+        else:
+            model_list = {}
+            for alpha in alpha_list:
+                filename = args.prediction_model.format(alpha=alpha)
+                model_list[alpha] = lib_LinearAlgebra.ElasticNetEstimator('', None, minimal_load=True)
+                model_list[alpha].minimal_load(filename)
+            # save gene list, trait list, and covariate list
+            for alpha in alpha_list:
+                gene_out = args.out_prefix.format(alpha=alpha) + '.gene_list.txt'
+                save_list(gene_list, gene_out)
+                trait_out = args.out_prefix.format(alpha=alpha) + '.trait_list.txt'
+                save_list(trait_list, trait_out)
+                covar_out = args.out_prefix.format(alpha=alpha) + '.covar_list.txt'
+                save_list(covar_list, covar_out)
+                outdir = args.out_prefix.format(alpha=alpha) + '.export_model/'
+                gen_dir(outdir)
+                betas = model_list[alpha].beta_hat_path[:]
+                gene_df = pd.DataFrame({'gene_id': gene_list})
+                for tidx, trait in enumerate(trait_list):
+                    print(f' Working on {trait}')
+                    outputfile = outdir + f'weights.{trait}.tsv.gz'
+                    weight_mat = betas[:, tidx, :].numpy()
+                    weight_mat = weight_mat[:, np.abs(weight_mat).sum(axis=0) != 0]
+                    weight_df = pd.concat((gene_df, pd.DataFrame(weight_mat, columns=[ f'model_{idx}' for idx in range(weight_mat.shape[1]) ])), axis=1)
+                    weight_df.to_csv(outputfile, index=False, compression='gzip', sep='\t')
+                    
+                        
     
     

@@ -1,0 +1,33 @@
+# computing environment setup
+source /vol/bmd/yanyul/miniconda3/etc/profile.d/conda.sh
+conda activate tensorflow
+source /home/yanyul/tensorflow_env.sh
+export CUDA_VISIBLE_DEVICES=0
+
+thisdir=`pwd`
+
+# pre-specifics
+WORKDIR=/vol/bmd/yanyul/GitHub/ptrs-tf/code
+cd $WORKDIR
+
+# params
+holdout_size=4096
+train_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2/ukb_imp_x_ctimp_Whole_Blood_t2d_British.hdf5
+data_scheme=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/data_scheme_t2d.yaml
+pred_model=/vol/bmd/yanyul/UKB/ptrs-tf/models/elastic_net_t2d_ptrs_gtex_british_{alpha}.hdf5
+
+# output
+OUTDIR=/vol/bmd/yanyul/UKB/ptrs-tf/models
+tag=elastic_net_t2d_ptrs_gtex_british
+logfile=$OUTDIR/$tag.export.log
+
+python train_ptrs.py \
+  --logfile $logfile \
+  --out_prefix $OUTDIR/$tag \
+  --size_of_data_to_hold $holdout_size \
+  --data_hdf5 British:$train_hdf5 \
+  --data_scheme_yaml $data_scheme \
+  --prediction_model $pred_model \
+  --no_inv_y \
+  --binary \
+  --export > $thisdir/export_elastic_net_t2d.log 2>&1
