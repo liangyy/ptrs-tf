@@ -28,6 +28,10 @@ parser.add_argument('--yaml-of-inputs', required=True, help='''
                         lists:
                           pop1: 'file1'
                           pop2: 'file2'
+                          pop3: 
+                            validation: 'set1'
+                            test: 'set1'
+                            train: 'set1'
                         sample_col: 'name'
                         sep: ' '
     For 3, it specifies dataset names for sample ID, gene ID, and the matrix.
@@ -72,11 +76,24 @@ for i in mydic['indiv_list']['lists'].keys():
     logging.info('Loading indiv list {}'.format(i))
     filename = mydic['indiv_list']['lists'][i]
     popname = i
-    df_pop = pd.read_table(filename, header = 0, sep = mydic['indiv_list']['sep'])
-    ## to make sure the sample ID column is string
-    df_pop[indiv_sample_col] = df_pop[indiv_sample_col].astype('str')
+    if isinstance(filename, dict): 
+        df_pop = []
+        for kk in ['validation', 'test', 'train']:
+            if kk not in filename:
+                raise ValueError('If the list is nested structure, it should have validation, test, train entry.')
+            fn = filename[kk]
+            tmp = pd.read_table(fn, header = 0, sep = mydic['indiv_list']['sep'])
+            ## to make sure the sample ID column is string
+            tmp[indiv_sample_col] = tmp[indiv_sample_col].astype('str')
+            df_pop.append(tmp)
+        df_pop = pd.concat(tmp, axis=0)
+    else:
+        df_pop = pd.read_table(filename, header = 0, sep = mydic['indiv_list']['sep'])
+        ## to make sure the sample ID column is string
+        df_pop[indiv_sample_col] = df_pop[indiv_sample_col].astype('str')
     ## annotate indiv df with phenotype features
-    df_pop = df_pop.join(pheno.set_index(pheno_sample_col), on = indiv_sample_col)
+    # df_pop = df_pop.join(pheno.set_index(pheno_sample_col), on = indiv_sample_col)
+    df_pop = df.merge(df_pop, pheno, right_on = pheno_sample_col), left_on = indiv_sample_col, how = 'left')
     ## limit to the columns to output
     df_pop = df_pop[[ indiv_sample_col ] + mydic['pheno_csv']['output_col'] ]
     ## rename the sample ID column to sample

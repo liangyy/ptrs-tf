@@ -82,4 +82,27 @@ screen -dmS cnn bash submit_train_cnnPTRS_ctimp_whole_blood.screen 2 residual .w
 screen -dmS mlp bash submit_train_mlpPTRS_ctimp_whole_blood.screen 3 residual .with_adam_and_universal_normalizer 
 ```
 
+About `run_split_pred_expr_new.screen`. Here we make improvement on having nest list on populations so that we could pre-specify the validation, test, and training set (in order and by chunk).
+This script itself is just the same as `run_split_pred_expr.screen` but the output is at `/vol/bmd/yanyul/UKB/predicted_expression_tf2_new` to avoid overwrite.
+
+```
+# GTEx Whole_Blood
+myhdf5=/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_ctimp_Whole_Blood.h5
+myyaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/split_ptrs_ukb_new.yaml
+prefixout=ukb_imp_x_ctimp_Whole_Blood
+screen -dmS split-$prefixout bash run_split_pred_expr_new.screen $myhdf5 $myyaml $prefixout
+
+# MESA CAU
+myhdf5=/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_CAU.h5
+myyaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/split_ptrs_ukb_new.yaml
+prefixout=ukb_imp_x_MESA_CAU
+screen -dmS split-$prefixout bash run_split_pred_expr_new.screen $myhdf5 $myyaml $prefixout
+
+# MESA AFHI
+myhdf5=/vol/bmd/yanyul/UKB/predicted_expression/predicted_expression.ukb_imp_x_AFHI.h5
+myyaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/split_ptrs_ukb_new.yaml
+prefixout=ukb_imp_x_MESA_AFHI
+screen -dmS split-$prefixout bash run_split_pred_expr_new.screen $myhdf5 $myyaml $prefixout
+
+```
 
