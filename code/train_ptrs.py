@@ -106,7 +106,7 @@ if __name__ == '__main__':
         datefmt = '%Y-%m-%d %I:%M:%S %p'
     )
     
-    from train_lib import prep_dataset_from_hdf5
+    from train_lib import prep_dataset_from_hdf5, save_list, gen_dir
     import util_ElasticNet, lib_LinearAlgebra, util_hdf5, lib_ElasticNet, lib_Checker
     import tensorflow as tf
     import functools
@@ -254,13 +254,14 @@ if __name__ == '__main__':
                 model_list[alpha].minimal_load(filename)
             # save gene list, trait list, and covariate list
             for alpha in alpha_list:
-                gene_out = args.out_prefix.format(alpha=alpha) + '.gene_list.txt'
+                outfile_prefix = '{}_{}'.format(args.out_prefix, alpha)
+                gene_out = outfile_prefix + '.gene_list.txt'
                 save_list(gene_list, gene_out)
-                trait_out = args.out_prefix.format(alpha=alpha) + '.trait_list.txt'
+                trait_out = outfile_prefix + '.trait_list.txt'
                 save_list(trait_list, trait_out)
-                covar_out = args.out_prefix.format(alpha=alpha) + '.covar_list.txt'
+                covar_out = outfile_prefix + '.covar_list.txt'
                 save_list(covar_list, covar_out)
-                outdir = args.out_prefix.format(alpha=alpha) + '.export_model/'
+                outdir = outfile_prefix + '.export_model/'
                 gen_dir(outdir)
                 betas = model_list[alpha].beta_hat_path[:]
                 gene_df = pd.DataFrame({'gene_id': gene_list})

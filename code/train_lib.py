@@ -26,6 +26,7 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
         features = f['columns_y'][:].astype('str')
         sample_size = f['y'].shape[0]
         y = f['y'][:]
+        genes = f['columns_x'][:].astype('str')
     covar_indice = np.where(np.isin(features, feature_dic['covar_names']))[0]
     trait_indice = np.where(np.isin(features, feature_dic['outcome_names']))[0]
     
@@ -78,7 +79,7 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
             return dataset_valid, dataset_test, dataset_insample, (features, trait_indice), (dataset_valid_aga, dataset_test_aga, dataset_insample_aga, x_indice_target, x_indice_against)
     
     elif stage == 'export':
-        gene_list = genes_target[data_scheme.get_indice_x()]
+        gene_list = genes[data_scheme.get_indice_x()]
         trait_list = features[data_scheme.outcome_indice]
         covar_list = features[data_scheme.covariate_indice]
         return gene_list, trait_list, covar_list
@@ -103,3 +104,4 @@ def gen_dir(dirname):
         print("Directory " , dirname ,  " Created ")
     else:    
         print("Directory " , dirname ,  " already exists")
+

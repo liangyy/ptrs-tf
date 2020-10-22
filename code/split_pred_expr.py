@@ -86,14 +86,14 @@ for i in mydic['indiv_list']['lists'].keys():
             ## to make sure the sample ID column is string
             tmp[indiv_sample_col] = tmp[indiv_sample_col].astype('str')
             df_pop.append(tmp)
-        df_pop = pd.concat(tmp, axis=0)
+        df_pop = pd.concat(df_pop, axis=0)
     else:
         df_pop = pd.read_table(filename, header = 0, sep = mydic['indiv_list']['sep'])
         ## to make sure the sample ID column is string
         df_pop[indiv_sample_col] = df_pop[indiv_sample_col].astype('str')
     ## annotate indiv df with phenotype features
     # df_pop = df_pop.join(pheno.set_index(pheno_sample_col), on = indiv_sample_col)
-    df_pop = df.merge(df_pop, pheno, right_on = pheno_sample_col), left_on = indiv_sample_col, how = 'left')
+    df_pop = pd.merge(df_pop, pheno, right_on = pheno_sample_col, left_on = indiv_sample_col, how = 'left')
     ## limit to the columns to output
     df_pop = df_pop[[ indiv_sample_col ] + mydic['pheno_csv']['output_col'] ]
     ## rename the sample ID column to sample
