@@ -110,6 +110,7 @@ if __name__ == '__main__':
     import util_ElasticNet, lib_LinearAlgebra, util_hdf5, lib_ElasticNet, lib_Checker
     import tensorflow as tf
     import functools
+    from util_misc import load_ordered_yaml
 
 
     ### Load data
@@ -194,12 +195,15 @@ if __name__ == '__main__':
 
         for alpha in alpha_list:
             logging.info('alpha = {} starts'.format(alpha))
-            lambda_init_dict = {
-                'data_init': None, 
-                'prefactor_of_lambda_max': 1.5,
-                'lambda_max_over_lambda_min': 1e6,
-                'nlambda': 50
-            }
+            if args.lambda_dict is None:
+                lambda_init_dict = {
+                    'data_init': None, 
+                    'prefactor_of_lambda_max': 1.5,
+                    'lambda_max_over_lambda_min': 1e6,
+                    'nlambda': 50
+                }
+            else:
+                lambda_init_dict = load_ordered_yaml(args.lambda_dict)
             updater = lib_ElasticNet.ProximalUpdater(learning_rate=learning_rate, line_search=True)
             update_dic = {
                 'updater': updater,
