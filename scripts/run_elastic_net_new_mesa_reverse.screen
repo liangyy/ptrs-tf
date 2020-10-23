@@ -11,7 +11,7 @@ WORKDIR=/vol/bmd/yanyul/GitHub/ptrs-tf/code
 cd $WORKDIR
 
 # params
-holdout_size=4096
+holdout_size=5000
 train_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_MESA_CAU_British.hdf5
 against_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_MESA_AFHI_British.hdf5
 data_scheme=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/data_scheme.yaml

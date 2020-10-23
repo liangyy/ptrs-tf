@@ -42,5 +42,6 @@ python train_ptrs.py \
   --prediction_model $pred_model \
   --against_hdf5_predict African:$af_hdf5 Chinese:$ch_hdf5 Indian:$in_hdf5 \
   --data_hdf5_predict African:$af_ag_hdf5 Chinese:$ch_ag_hdf5 Indian:$in_ag_hdf5 \
+  --alpha_seq 0.1 \
   > $thisdir/pred_elastic_net_new_mesa_reverse.log 2>&1
 
