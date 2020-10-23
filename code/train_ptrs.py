@@ -95,6 +95,9 @@ if __name__ == '__main__':
     parser.add_argument('--export', action='store_true', help='''
         If specified, it will export the --prediction_model into TXT format.
     ''')
+    parser.add_argument('--lambda_dict', default=None, help='''
+        If want to use another definition of lambda sequence, specify it here.
+    ''')
     args = parser.parse_args()
  
     import logging, time, sys, os

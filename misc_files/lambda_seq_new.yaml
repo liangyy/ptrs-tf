@@ -1,0 +1,4 @@
+data_init: None 
+prefactor_of_lambda_max: 1.5,
+lambda_max_over_lambda_min: 1e4,
+nlambda: 11
