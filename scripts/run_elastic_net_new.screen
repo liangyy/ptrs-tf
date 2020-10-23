@@ -26,7 +26,7 @@ python train_ptrs.py \
   --logfile $logfile \
   --out_prefix $OUTDIR/$tag \
   --size_of_data_to_hold $holdout_size \
-  --data_hdf5 $train_hdf5 \
+  --data_hdf5 British:$train_hdf5 \
   --data_scheme_yaml $data_scheme \
   --alpha_seq 0.1 \
   --lambda_dict $lambda_params \

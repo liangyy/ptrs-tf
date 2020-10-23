@@ -63,7 +63,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_scheme_yaml', help='''
         Data scheme YAML.
     ''')
-    parser.add_argument('--alpha_seq', nargs='+', type=int, default=[0.1, 0.5, 0.9], help='''
+    parser.add_argument('--alpha_seq', nargs='+', type=float, default=[0.1, 0.5, 0.9], help='''
         A sequence of alpha to use.
     ''')
     parser.add_argument('--no_inv_y', action='store_true', help='''
