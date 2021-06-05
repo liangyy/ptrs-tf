@@ -14,7 +14,18 @@ def _pr2_format(ele, features, name, alpha, lambda_):
     f_seq = np.repeat(features, nlambda)
     return pd.DataFrame({'partial_r2': ele_seq, 'trait': f_seq, 'sample': name, 'alpha': alpha, 'lambda': lambda_seq})
 
-def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False):
+def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yaml=None):
+    if split_yaml is None:
+        syaml = None
+    else:
+        syaml = load_ordered_yaml(split_yaml)
+        if 'nrepeat' not in syaml:
+            syaml['nrepeat'] = 10
+        if 'fraction' not in syaml:
+            syaml['fraction'] = 0.5
+        if 'seed' not in syaml:
+            syaml['seed'] = 1
+        np.random.seed(syaml['seed'])
     partial_r2 = {}
     for alpha in alpha_list:
         partial_r2[alpha] = {}
@@ -26,17 +37,54 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False):
                 covar = x[:, -len(model_i.data_scheme.covariate_indice) :]
                 print('alpha = {}, trait = {}, ncol(covar) = {}'.format(alpha, i, covar.shape[1]))
             out = model_i.predict_x(dataset, model_i.beta_hat_path)
-            if binary is False:
-                partial_r2[alpha][i] = util_Stats.quick_partial_r2(covar, out['y'], out['y_pred_from_x'])
+            if syaml is None:
+                if binary is False:
+                    partial_r2[alpha][i] = util_Stats.quick_partial_r2(covar, out['y'], out['y_pred_from_x'])
+                else:
+                    partial_r2[alpha][i] = util_Stats.binary_perf(covar, out['y'], out['y_pred_from_x'], func=calc_auc)
             else:
-                partial_r2[alpha][i] = util_Stats.binary_perf(covar, out['y'], out['y_pred_from_x'], func=calc_auc)
+                out = []
+                labels = []
+                ntotal = out['y'].shape[0]
+                nselect = int(ntotal * syaml['fraction'])
+                idx_all = np.arange(ntotal)
+                for i in range(syaml['nrepeat']):
+                    selected_idx = np.random.choice(ntotal, nselect, replace=False)
+                    selected_ind = np.isin(idx_all, selected_idx)
+                    yy1 = out['y'][selected_ind]
+                    yy2 = out['y'][~selected_ind]
+                    yyp1 = out['y'][y_pred_from_x, :]
+                    yyp2 = out['y'][~y_pred_from_x, :]
+                    if binary is False:
+                        tmp1 = util_Stats.quick_partial_r2(covar, yy1, yyp1)
+                        tmp2 = util_Stats.quick_partial_r2(covar, yy2, yyp2)
+                    else:
+                        tmp1 = util_Stats.binary_perf(covar, yy1, yyp1, func=calc_auc)
+                        tmp2 = util_Stats.binary_perf(covar, yy2, yyp2, func=calc_auc)
+                    out.append(tmp1)
+                    out.append(tmp2)
+                    labels.append(f'repeat{i}_1')
+                    labels.append(f'repeat{i}_2')
+                partial_r2[alpha][i] = (out, labels)
+                    
     res_list = []
-    df = pd.DataFrame({'partial_r2': [], 'trait': [], 'sample': [], 'alpha': [], 'lambda': []})
+    if syaml is None:
+        df = pd.DataFrame({'partial_r2': [], 'trait': [], 'sample': [], 'alpha': [], 'lambda': []})
+    else:
+        df = pd.DataFrame({'partial_r2': [], 'trait': [], 'sample': [], 'alpha': [], 'lambda': [], 'split_label': []})
     for alpha in alpha_list:
         model_i = model_list[alpha]
         lambda_i = np.array(model_i.lambda_seq)
         for i in partial_r2[alpha].keys():
-            df = pd.concat((df, _pr2_format(partial_r2[alpha][i], features[trait_indice], i, alpha, lambda_i)))
+            if syaml is None:
+                df = pd.concat((df, _pr2_format(partial_r2[alpha][i], features[trait_indice], i, alpha, lambda_i)))
+            else:
+                for oo, ll in zip(i[0], i[1]):
+                    tmp_df1 = _pr2_format(oo[0], features[trait_indice], i, alpha, lambda_i)
+                    tmp_df2 = _pr2_format(oo[1], features[trait_indice], i, alpha, lambda_i)
+                    tmp_df1['split_label'] = ll[0]
+                    tmp_df2['split_label'] = ll[1]
+                df = pd.concat((df, tmp_df1, tmp_df2))
     if binary is True:
         df.rename(columns={'partial_r2': 'roc_auc'}, inplace=True)
     return df
@@ -97,6 +145,11 @@ if __name__ == '__main__':
     ''')
     parser.add_argument('--lambda_dict', default=None, help='''
         If want to use another definition of lambda sequence, specify it here.
+    ''')
+    parser.add_argument('--split_yaml', default=None, help='''
+        If set, it will split the test set accordingly and calculate the R2 for each split.
+        The YAML should contain:
+        nrepeat (default=10), fraction (default=0.5), seed (default=1)
     ''')
     args = parser.parse_args()
  
@@ -246,7 +299,10 @@ if __name__ == '__main__':
                 for alpha in alpha_list:
                     model_list[alpha].data_scheme.x_indice = x_indice_aga
                 
-                df = get_partial_r2(alpha_list, model_list, dataset_aga_dict, binary=args.binary)
+                df = get_partial_r2(
+                    alpha_list, model_list, dataset_aga_dict, 
+                    binary=args.binary, split_yaml=args.split_yaml
+                )
                 df['pred_expr_source'] = 'against'
                 res_list.append(df)
             
