@@ -43,29 +43,32 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yam
                 else:
                     partial_r2[alpha][i] = util_Stats.binary_perf(covar, out['y'], out['y_pred_from_x'], func=calc_auc)
             else:
-                out = []
+                out2 = []
                 labels = []
                 ntotal = out['y'].shape[0]
                 nselect = int(ntotal * syaml['fraction'])
                 idx_all = np.arange(ntotal)
-                for i in range(syaml['nrepeat']):
+                for ii in range(syaml['nrepeat']):
                     selected_idx = np.random.choice(ntotal, nselect, replace=False)
                     selected_ind = np.isin(idx_all, selected_idx)
                     yy1 = out['y'][selected_ind]
                     yy2 = out['y'][~selected_ind]
-                    yyp1 = out['y'][y_pred_from_x, :]
-                    yyp2 = out['y'][~y_pred_from_x, :]
+                    yyp1 = out['y_pred_from_x'][selected_ind, :]
+                    yyp2 = out['y_pred_from_x'][~selected_ind, :]
+                    cc = covar.numpy()
+                    cc1 = cc[selected_ind, :]
+                    cc2 = cc[~selected_ind, :]
                     if binary is False:
-                        tmp1 = util_Stats.quick_partial_r2(covar, yy1, yyp1)
-                        tmp2 = util_Stats.quick_partial_r2(covar, yy2, yyp2)
+                        tmp1 = util_Stats.quick_partial_r2(cc1, yy1, yyp1)
+                        tmp2 = util_Stats.quick_partial_r2(cc2, yy2, yyp2)
                     else:
-                        tmp1 = util_Stats.binary_perf(covar, yy1, yyp1, func=calc_auc)
-                        tmp2 = util_Stats.binary_perf(covar, yy2, yyp2, func=calc_auc)
-                    out.append(tmp1)
-                    out.append(tmp2)
-                    labels.append(f'repeat{i}_1')
-                    labels.append(f'repeat{i}_2')
-                partial_r2[alpha][i] = (out, labels)
+                        tmp1 = util_Stats.binary_perf(cc1, yy1, yyp1, func=calc_auc)
+                        tmp2 = util_Stats.binary_perf(cc2, yy2, yyp2, func=calc_auc)
+                    out2.append(tmp1)
+                    out2.append(tmp2)
+                    labels.append(f'repeat{ii}_1')
+                    labels.append(f'repeat{ii}_2')
+                partial_r2[alpha][i] = (out2, labels)
                     
     res_list = []
     if syaml is None:
@@ -79,12 +82,13 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yam
             if syaml is None:
                 df = pd.concat((df, _pr2_format(partial_r2[alpha][i], features[trait_indice], i, alpha, lambda_i)))
             else:
-                for oo, ll in zip(i[0], i[1]):
-                    tmp_df1 = _pr2_format(oo[0], features[trait_indice], i, alpha, lambda_i)
-                    tmp_df2 = _pr2_format(oo[1], features[trait_indice], i, alpha, lambda_i)
-                    tmp_df1['split_label'] = ll[0]
-                    tmp_df2['split_label'] = ll[1]
-                df = pd.concat((df, tmp_df1, tmp_df2))
+                res = partial_r2[alpha][i]
+                for oo, ll in zip(res[0], res[1]):
+                    tmp_df1 = _pr2_format(oo, features[trait_indice], i, alpha, lambda_i)
+                    # tmp_df2 = _pr2_format(oo2, features[trait_indice], i, alpha, lambda_i)
+                    tmp_df1['split_label'] = ll
+                    # tmp_df2['split_label'] = ll2
+                    df = pd.concat((df, tmp_df1))
     if binary is True:
         df.rename(columns={'partial_r2': 'roc_auc'}, inplace=True)
     return df
@@ -289,7 +293,7 @@ if __name__ == '__main__':
             ### Predict and get partial r2
             ### Do data_hdf5 first and then do against_hdf5 if needed
             res_list = []
-            df = get_partial_r2(alpha_list, model_list, dataset_dict, binary=args.binary)
+            df = get_partial_r2(alpha_list, model_list, dataset_dict, binary=args.binary, split_yaml=args.split_yaml)
             df['pred_expr_source'] = 'train'
             res_list.append(df)
             

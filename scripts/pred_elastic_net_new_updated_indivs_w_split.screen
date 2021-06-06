@@ -22,7 +22,7 @@ split_yaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/eval_split.yaml
 
 # output
 OUTDIR=/vol/bmd/yanyul/UKB/ptrs-tf/models_new
-tag=elastic_net_ptrs_gtex_british
+tag=elastic_net_ptrs_gtex_british_updated_indivs_w_split
 logfile=$OUTDIR/$tag.pred.log
 
 python train_ptrs.py \
