@@ -14,7 +14,7 @@ def _pr2_format(ele, features, name, alpha, lambda_):
     f_seq = np.repeat(features, nlambda)
     return pd.DataFrame({'partial_r2': ele_seq, 'trait': f_seq, 'sample': name, 'alpha': alpha, 'lambda': lambda_seq})
 
-def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yaml=None, simple=True):
+def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yaml=None, simple=False):
     if split_yaml is None:
         syaml = None
     else:
@@ -80,7 +80,10 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yam
         df = pd.DataFrame({'partial_r2': [], 'trait': [], 'sample': [], 'alpha': [], 'lambda': [], 'split_label': []})
     for alpha in alpha_list:
         model_i = model_list[alpha]
-        lambda_i = np.array(model_i.lambda_seq)
+        if simple is False:
+            lambda_i = np.array(model_i.lambda_seq)
+        else:
+            lambda_i = np.array(model_i)
         for i in partial_r2[alpha].keys():
             if syaml is None:
                 df = pd.concat((df, _pr2_format(partial_r2[alpha][i], features[trait_indice], i, alpha, lambda_i)))
