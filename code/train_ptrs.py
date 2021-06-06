@@ -14,7 +14,7 @@ def _pr2_format(ele, features, name, alpha, lambda_):
     f_seq = np.repeat(features, nlambda)
     return pd.DataFrame({'partial_r2': ele_seq, 'trait': f_seq, 'sample': name, 'alpha': alpha, 'lambda': lambda_seq})
 
-def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yaml=None):
+def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yaml=None, simple=True):
     if split_yaml is None:
         syaml = None
     else:
@@ -32,11 +32,14 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yam
         model_i = model_list[alpha]
         for i in dataset_dict.keys():
             dataset = dataset_dict[i]
-            for ele in dataset:
-                x, y = model_i.data_scheme.get_data_matrix(ele)
-                covar = x[:, -len(model_i.data_scheme.covariate_indice) :]
-                print('alpha = {}, trait = {}, ncol(covar) = {}'.format(alpha, i, covar.shape[1]))
-            out = model_i.predict_x(dataset, model_i.beta_hat_path)
+            if simple is False:
+                for ele in dataset:
+                    x, y = model_i.data_scheme.get_data_matrix(ele)
+                    covar = x[:, -len(model_i.data_scheme.covariate_indice) :]
+                    print('alpha = {}, trait = {}, ncol(covar) = {}'.format(alpha, i, covar.shape[1]))
+                out = model_i.predict_x(dataset, model_i.beta_hat_path)
+            else:
+                out['y'], out['y_pred_from_x'], covar = dataset
             if syaml is None:
                 if binary is False:
                     partial_r2[alpha][i] = util_Stats.quick_partial_r2(covar, out['y'], out['y_pred_from_x'])
