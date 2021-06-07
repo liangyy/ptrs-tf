@@ -14,9 +14,9 @@ cd $WORKDIR
 holdout_size=5000
 train_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_ctimp_Whole_Blood_British.hdf5
 data_scheme=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/data_scheme.yaml
-af_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_ctimp_Whole_Blood_African.hdf5
+af_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_ctimp_Whole_Blood_African.hdf5
 ch_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_ctimp_Whole_Blood_Chinese.hdf5
-in_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_ctimp_Whole_Blood_Indian.hdf5
+in_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_ctimp_Whole_Blood_Indian.hdf5
 
 split_yaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/eval_split.yaml
 
@@ -30,7 +30,7 @@ btest_list=/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/British-test-1.txt
 
 # output
 OUTDIR=/vol/bmd/yanyul/UKB/ptrs-tf/models_new
-tag=prs_british_updated_indivs_w_split
+tag=prs_british_updated_indivs_w_split_OLD
 logfile=$OUTDIR/$tag.pred.log
 
 python eval_prs.py \
@@ -47,4 +47,4 @@ python eval_prs.py \
   British_test:$train_hdf5:$btest_list \
   British_validation:$train_hdf5:$bval_list \
   --split_yaml $split_yaml \
-  > $thisdir/pred_prs_new_updated_indivs_w_split.log 2>&1
+  > $thisdir/pred_prs_new_updated_indivs_w_split_OLD.log 2>&1
