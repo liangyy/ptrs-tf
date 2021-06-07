@@ -12,8 +12,7 @@ cd $WORKDIR
 
 # params
 holdout_size=5000
-train_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_MESA_CAU_British.hdf5
-against_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_MESA_ALL_British.hdf5
+train_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_MESA_ALL_British.hdf5
 data_scheme=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/data_scheme.yaml
 lambda_params=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/lambda_seq_new.yaml
 
