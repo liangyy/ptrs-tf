@@ -4,6 +4,13 @@ import h5py
 import util_hdf5, util_Stats
 from util_misc import load_ordered_yaml
 
+def check_eq(l1, l2):
+    if len(l1) != len(l2):
+        raise ValueError('l1 and l2 have different number of elements.')
+    for i, j in zip(l1, l2):
+        if i != j:
+            raise ValueError('l1 and l2 elements are in different order.')
+
 def load_indiv(fn):
     reference_mat = pd.read_csv(fn, sep=' ')
     reference_mat = reference_mat.rename(columns = {'FID': 'indiv'})
@@ -105,11 +112,16 @@ if __name__ == '__main__':
     alpha_list = [ 'NA' ]
     model_list = { 'NA': [] }
     dataset_dict = {}
+    pheno_list = None
     for data_pred in args.data_hdf5_predict:
         data_pred_name, pred_expr, indiv_list = parse_data_args(data_pred)
         logging.info(f'Working on {data_pred_name}')
         reference_mat = load_indiv(indiv_list)
-        y, covar, pheno_list = load_y_and_covar(pred_expr, reference_mat, args)
+        y, covar, pheno_list2 = load_y_and_covar(pred_expr, reference_mat, args)
+        if pheno_list is None:
+            pheno_list = pheno_list2
+        else:
+            check_eq(pheno_list, pheno_list2)
         
         npheno = y.shape[1]
         npoints = ntotal // npheno
@@ -131,7 +143,7 @@ if __name__ == '__main__':
         
     logging.info('Calculating partial r2.')
     breakpoint()
-    df = get_partial_r2(alpha_list, model_list, dataset_dict, binary=args.binary, split_yaml=args.split_yaml, simple=True)      
+    df = get_partial_r2(alpha_list, model_list, dataset_dict, pheno_list, binary=args.binary, split_yaml=args.split_yaml, simple=True)      
     
     df.to_csv(args.out_prefix + '.performance.csv', index=False)
     
