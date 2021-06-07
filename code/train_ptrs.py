@@ -15,7 +15,7 @@ def _pr2_format(ele, features, name, alpha, lambda_):
     f_seq = np.repeat(features, nlambda)
     return pd.DataFrame({'partial_r2': ele_seq, 'trait': f_seq, 'sample': name, 'alpha': alpha, 'lambda': lambda_seq})
 
-def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yaml=None, simple=False):
+def get_partial_r2(alpha_list, model_list, dataset_dict, features, binary=False, split_yaml=None, simple=False):
     if split_yaml is None:
         syaml = None
     else:
@@ -305,7 +305,7 @@ if __name__ == '__main__':
             ### Predict and get partial r2
             ### Do data_hdf5 first and then do against_hdf5 if needed
             res_list = []
-            df = get_partial_r2(alpha_list, model_list, dataset_dict, binary=args.binary, split_yaml=args.split_yaml)
+            df = get_partial_r2(alpha_list, model_list, dataset_dict, features[trait_indice], binary=args.binary, split_yaml=args.split_yaml)
             df['pred_expr_source'] = 'train'
             res_list.append(df)
             
@@ -316,7 +316,7 @@ if __name__ == '__main__':
                     model_list[alpha].data_scheme.x_indice = x_indice_aga
                 
                 df = get_partial_r2(
-                    alpha_list, model_list, dataset_aga_dict, 
+                    alpha_list, model_list, dataset_aga_dict, features[trait_indice],
                     binary=args.binary, split_yaml=args.split_yaml
                 )
                 df['pred_expr_source'] = 'against'
