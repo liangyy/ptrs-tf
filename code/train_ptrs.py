@@ -41,7 +41,7 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yam
                 out = model_i.predict_x(dataset, model_i.beta_hat_path)
             else:
                 out = {}
-                out['y'], out['y_pred_from_x'], covar = dataset
+                covar, out['y'], out['y_pred_from_x'] = dataset
             if syaml is None:
                 if binary is False:
                     partial_r2[alpha][i] = util_Stats.quick_partial_r2(covar, out['y'], out['y_pred_from_x'])
@@ -66,7 +66,6 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yam
                         cc = covar.copy()
                     cc1 = cc[selected_ind, :]
                     cc2 = cc[~selected_ind, :]
-                    breakpoint()
                     if binary is False:
                         tmp1 = util_Stats.quick_partial_r2(cc1, yy1, yyp1)
                         tmp2 = util_Stats.quick_partial_r2(cc2, yy2, yyp2)

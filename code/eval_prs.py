@@ -130,6 +130,7 @@ if __name__ == '__main__':
         dataset_dict[data_pred_name] = (covar, y, prs_collector)
         
     logging.info('Calculating partial r2.')
+    breakpoint()
     df = get_partial_r2(alpha_list, model_list, dataset_dict, binary=args.binary, split_yaml=args.split_yaml, simple=True)      
     
     df.to_csv(args.out_prefix + '.performance.csv', index=False)
