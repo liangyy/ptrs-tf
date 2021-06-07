@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import h5py
 import util_hdf5, util_Stats
+from util_misc import load_ordered_yaml
 
 def load_indiv(fn):
     reference_mat = pd.read_csv(fn, sep=' ')
@@ -16,7 +17,7 @@ def load_y_and_covar(pred_expr, reference_mat, args):
         indiv_ids = f['rows'][...].astype('str')
     data_scheme, _ = util_hdf5.build_data_scheme(
         pred_expr, 
-        scheme_yaml, 
+        args.data_scheme_yaml, 
         batch_size=args.size_of_data_to_hold, 
         inv_norm_y=inv_y
     )
@@ -113,7 +114,7 @@ if __name__ == '__main__':
         npheno = y.shape[1]
         npoints = ntotal // npheno
         prs_collector = np.empty((reference_mat.shape[0], npheno, npoints))
-        for i in range(pheno_list):
+        for i in range(len(pheno_list)):
             trait = pheno_list[i]
             cols = []
             for j in list(df_prs.columns):

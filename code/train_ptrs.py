@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import util_Stats
 from util_Stats import calc_auc
+from util_misc import load_ordered_yaml
 
 def parse_data_args(args):
     return args.split(':')
@@ -39,6 +40,7 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yam
                     print('alpha = {}, trait = {}, ncol(covar) = {}'.format(alpha, i, covar.shape[1]))
                 out = model_i.predict_x(dataset, model_i.beta_hat_path)
             else:
+                out = {}
                 out['y'], out['y_pred_from_x'], covar = dataset
             if syaml is None:
                 if binary is False:
@@ -58,9 +60,13 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, binary=False, split_yam
                     yy2 = out['y'][~selected_ind]
                     yyp1 = out['y_pred_from_x'][selected_ind, :]
                     yyp2 = out['y_pred_from_x'][~selected_ind, :]
-                    cc = covar.numpy()
+                    if not isinstance(covar, np.ndarray):
+                        cc = covar.numpy()
+                    else:
+                        cc = covar.copy()
                     cc1 = cc[selected_ind, :]
                     cc2 = cc[~selected_ind, :]
+                    breakpoint()
                     if binary is False:
                         tmp1 = util_Stats.quick_partial_r2(cc1, yy1, yyp1)
                         tmp2 = util_Stats.quick_partial_r2(cc2, yy2, yyp2)
@@ -176,7 +182,7 @@ if __name__ == '__main__':
     import util_ElasticNet, lib_LinearAlgebra, util_hdf5, lib_ElasticNet, lib_Checker
     import tensorflow as tf
     import functools
-    from util_misc import load_ordered_yaml
+    # from util_misc import load_ordered_yaml
 
 
     ### Load data
