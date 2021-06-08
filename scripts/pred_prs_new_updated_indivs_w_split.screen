@@ -1,0 +1,50 @@
+# computing environment setup
+source /vol/bmd/yanyul/miniconda3/etc/profile.d/conda.sh
+conda activate tensorflow
+source /home/yanyul/tensorflow_env.sh
+export CUDA_VISIBLE_DEVICES=1
+
+thisdir=`pwd`
+
+# pre-specifics
+WORKDIR=/vol/bmd/yanyul/GitHub/ptrs-tf/code
+cd $WORKDIR
+
+# params
+holdout_size=5000
+train_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_ctimp_Whole_Blood_British.hdf5
+data_scheme=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/data_scheme.yaml
+af_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_ctimp_Whole_Blood_African.hdf5
+ch_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_ctimp_Whole_Blood_Chinese.hdf5
+in_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_ctimp_Whole_Blood_Indian.hdf5
+
+split_yaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/eval_split.yaml
+
+prs_table=/vol/bmd/yanyul/UKB/ptrs-tf/prs-from-cri/prs_cri_subset1.tsv.bgz
+
+af_list=/vol/bmd/yanyul/GitHub/ptrs-ukb/output/new_data_split/African.txt
+ch_list=/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/Chinese.txt
+in_list=/vol/bmd/yanyul/GitHub/ptrs-ukb/output/new_data_split/Indian.txt
+bval_list=/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/British-validation-1.txt
+btest_list=/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/British-test-1.txt
+
+# output
+OUTDIR=/vol/bmd/yanyul/UKB/ptrs-tf/models_new
+tag=prs_british_updated_indivs_w_split
+logfile=$OUTDIR/$tag.pred.log
+
+python eval_prs.py \
+  --logfile $logfile \
+  --out_prefix $OUTDIR/$tag \
+  --size_of_data_to_hold $holdout_size \
+  --data_scheme_yaml $data_scheme \
+  --prs_col_pattern pval_thres_subset1_x_{trait}_x_ \
+  --prs_table $prs_table \
+  --data_hdf5_predict \
+  African:$af_hdf5:$af_list \
+  Chinese:$ch_hdf5:$ch_list \
+  Indian:$in_hdf5:$in_list \
+  British_test:$train_hdf5:$btest_list \
+  British_validation:$train_hdf5:$bval_list \
+  --split_yaml $split_yaml \
+  > $thisdir/pred_prs_new_updated_indivs_w_split.log 2>&1
