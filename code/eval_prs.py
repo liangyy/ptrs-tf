@@ -4,6 +4,11 @@ import h5py
 import util_hdf5, util_Stats
 from util_misc import load_ordered_yaml
 
+def check_eq2(ll1, ll2):
+    ee = np.array(ll1) == np.array(ll2)
+    if np.sum(~ee) > 0:
+        raise ValueError('ll1 and ll2 are not equal.')
+
 def check_eq(l1, l2):
     if len(l1) != len(l2):
         raise ValueError('l1 and l2 have different number of elements.')
@@ -110,7 +115,7 @@ if __name__ == '__main__':
     collect_dic = {}
     # some placeholders to run get_partial_r2
     alpha_list = [ 'NA' ]
-    model_list = { 'NA': [] }
+    model_list = { 'NA': None }
     dataset_dict = {}
     pheno_list = None
     for data_pred in args.data_hdf5_predict:
@@ -126,23 +131,28 @@ if __name__ == '__main__':
         npheno = y.shape[1]
         npoints = ntotal // npheno
         prs_collector = np.empty((reference_mat.shape[0], npheno, npoints))
+        hypers = []
         for i in range(len(pheno_list)):
             trait = pheno_list[i]
             cols = []
             for j in list(df_prs.columns):
-                colname_j = args.prs_col_pattern.format(trait=trait)
-                if colname_j in j:
+                colname_j = '^' + args.prs_col_pattern.format(trait=trait)
+                jj = '^' + j
+                if colname_j in jj:
                     cols.append(j)
             prs_mat = df_prs[['s'] + cols]
             out_mat = reference_mat.join(prs_mat.set_index('s'), on='indiv').iloc[:, 1:]
             out_mat = out_mat.to_numpy()
             prs_collector[:, i, :] = out_mat
-        prs_names = [ re.sub(colname_j, '', i) for i in cols ]
-        model_list['NA'].append(prs_names) 
+            prs_names = [ re.sub(colname_j, '', i) for i in cols ]
+            hypers.append(prs_names)
+        if model_list['NA'] is None:
+            model_list['NA'] = hypers
+        else:
+            check_eq2(model_list['NA'], hypers)
         dataset_dict[data_pred_name] = (covar, y, prs_collector)
         
     logging.info('Calculating partial r2.')
-    breakpoint()
     df = get_partial_r2(alpha_list, model_list, dataset_dict, pheno_list, binary=args.binary, split_yaml=args.split_yaml, simple=True)      
     
     df.to_csv(args.out_prefix + '.performance.csv', index=False)

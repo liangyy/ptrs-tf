@@ -20,7 +20,7 @@ in_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_
 
 split_yaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/eval_split.yaml
 
-prs_table=/vol/bmd/yanyul/UKB/ptrs-tf/prs-from-cri/prs_cri_subset1.tsv.bgz
+prs_table=/vol/bmd/yanyul/UKB/ptrs-tf/prs-from-cri/prs_cri_subset1.tsv.gz
 
 af_list=/vol/bmd/yanyul/GitHub/ptrs-ukb/output/new_data_split/African.txt
 ch_list=/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/Chinese.txt
@@ -38,7 +38,7 @@ python eval_prs.py \
   --out_prefix $OUTDIR/$tag \
   --size_of_data_to_hold $holdout_size \
   --data_scheme_yaml $data_scheme \
-  --prs_col_pattern pval_thres_subset1_x_{trait}_x_ \
+  --prs_col_pattern {trait}_x_pval_cutoff_ \
   --prs_table $prs_table \
   --data_hdf5_predict \
   African:$af_hdf5:$af_list \

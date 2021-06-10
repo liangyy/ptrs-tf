@@ -91,11 +91,11 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, features, binary=False,
             lambda_i = np.array(model_i)
         for i in partial_r2[alpha].keys():
             if syaml is None:
-                df = pd.concat((df, _pr2_format(partial_r2[alpha][i], features[trait_indice], i, alpha, lambda_i)))
+                df = pd.concat((df, _pr2_format(partial_r2[alpha][i], features, i, alpha, lambda_i)))
             else:
                 res = partial_r2[alpha][i]
                 for oo, ll in zip(res[0], res[1]):
-                    tmp_df1 = _pr2_format(oo, features[trait_indice], i, alpha, lambda_i)
+                    tmp_df1 = _pr2_format(oo, features, i, alpha, lambda_i)
                     # tmp_df2 = _pr2_format(oo2, features[trait_indice], i, alpha, lambda_i)
                     tmp_df1['split_label'] = ll
                     # tmp_df2['split_label'] = ll2
