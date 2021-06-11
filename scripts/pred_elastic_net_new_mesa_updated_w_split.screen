@@ -22,7 +22,7 @@ af_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_
 ch_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_MESA_CAU_Chinese.hdf5
 in_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_MESA_CAU_Indian.hdf5
 af_ag_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_MESA_AFHI_African.hdf5
-ch_ag_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_MESA_AFHI_Chinese.hdf5
+ch_ag_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new/ukb_imp_x_MESA_AFHI_Chinese.hdf5
 in_ag_hdf5=/vol/bmd/yanyul/UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_MESA_AFHI_Indian.hdf5
 split_yaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/eval_split.yaml
 
