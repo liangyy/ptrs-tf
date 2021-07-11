@@ -1,5 +1,5 @@
 pheno_csv:
-  file_path: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/new_query_phenotypes_cleaned_up.csv'
+  file_path: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/new2_query_phenotypes_cleaned_up.csv'
   sample_col: 'eid'
   output_col:
     - age_recruitment
