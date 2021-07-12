@@ -23,14 +23,17 @@ class DataScheme:
         self._update_indice(covariate_indice, 'covariate_indice')
         self._update_indice(x_indice, 'x_indice', type = 'X')
         # self.num_predictors = self.get_num_predictor()
-    def get_data_matrix(self, element, only_x = False):
-        x = element[self.X_index]
-        if self.x_indice is not None:
-            x = tf.gather(x, self.x_indice, axis = 1)
+    def get_data_matrix(self, element, only_x = False, only_covar = False):
+        if only_covar is False:
+            x = element[self.X_index]
+            if self.x_indice is not None:
+                x = tf.gather(x, self.x_indice, axis = 1)
+            if only_x is False:
+                covar = tf.gather(y, self.covariate_indice, axis = 1)
+                x = tf.concat((x, covar), axis = 1)
+        else:
+            x = tf.gather(y, self.covariate_indice, axis = 1)
         y = element[self.Y_index]
-        if only_x is False:
-            covar = tf.gather(y, self.covariate_indice, axis = 1)
-            x = tf.concat((x, covar), axis = 1)
         y = tf.gather(y, self.outcome_indice, axis = 1) 
         return x, y
     def get_data_matrix_x_in_cnn(self, element):
@@ -580,6 +583,177 @@ class ElasticNetEstimator:
         for i in range(1, len(vec_list)):
             tmp = np.concatenate((tmp, vec_list[i]), axis = 0)
         return tmp
+    def _out_dim_covar(self):
+        if self.data_scheme is None:
+            return None
+        else:
+            n_predictor = self.data_scheme.get_num_predictor()
+            n_covariate = self.data_scheme.get_num_covariate()
+            n_outcome = self.data_scheme.get_num_outcome()
+            x_dim = n_predictor
+            c_dim = n_covariate
+            y_dim = n_outcome
+            if self.intercept is True:
+                c_dim += 1  
+            return (x_dim, y_dim)
+    
+    def solve_pt(self, abs_z_cutoffs = [ 0.1, 1 ], rcond = 1e-10, logging = None):
+        '''
+        Solve P+T with self.alpha being interpreted as R2 cutoff.
+        Step 1: Run linear regression y ~ gene_i + covars for one gene at a time
+        to obtain z-score for each gene.
+        Step 2: Calculate correlation between genes.
+        Step 3: Performing P+T.
+        '''
+        self.lambda_seq = [ abs_z_cutoffs.copy() for self.data_scheme.get_num_outcome() ]
+        svd = SVDInstance(rcond)
+        logging.info('Don\'t support normalization.')
+        self.normalizer = False
+        logging.info('Add intercept.')
+        self.intercept = True
+        xdim, cdim, ydim = self._out_dim_covar()
+        ctc = tf.Variable(initial_value = tf.zeros([cdim, cdim], tf.float32))
+        ctx = tf.Variable(initial_value = tf.zeros([cdim, xdim], tf.float32))
+        n_processed = 0
+        for ele in self.data_scheme.dataset:
+            x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
+            c, _ = self.data_scheme.get_data_matrix(ele, only_covar = True)
+            c = self._prep_for_intercept(c)
+            n_new = x.shape[0]
+            n_old = n_processed
+            # val_old_mean * (n_old / (n_old + n_new)) + val_new_sum / (n_old + n_new) 
+            if scaling is True:
+                f_old = n_old / (n_old + n_new)
+                f_new = 1 / (n_old + n_new)
+            else:
+                f_old = 1
+                f_new = 1
+            ctc.assign(tf.add(
+                    tf.multiply(ctc, f_old), 
+                    tf.matmul(tf.multiply(tf.transpose(c), f_new), c)
+                )
+            )
+            ctx.assign(tf.add(
+                    tf.multiply(ctx, f_old), 
+                    tf.matmul(tf.multiply(tf.transpose(c), f_new), x)
+                )
+            )
+            n_processed += n_new
+        # svd on xtx
+        svd.solve(ctc)
+        
+        # calculate beta hat
+        covar_betahat = tf.matmul(
+            tf.matmul(
+                tf.matmul(
+                    svd.v, 
+                    tf.linalg.tensor_diag(tf.math.reciprocal_no_nan(svd.s))
+                ), 
+                tf.transpose(svd.u)
+            ), 
+            ctx
+        )
+        
+        x2 = tf.Variable(initial_value = tf.zeros([xdim], tf.float32))
+        xty = tf.Variable(initial_value = tf.zeros([xdim, ydim], tf.float32))
+        y2 = tf.Variable(initial_value = tf.zeros([ydim], tf.float32))
+        xtx = tf.Variable(initial_value = tf.zeros([xdim, xdim], tf.float32))
+        n_processed = 0
+        for ele in self.data_scheme.dataset:
+            x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
+            c, _ = self.data_scheme.get_data_matrix(ele, only_covar = True)
+            xtx.assign(tf.add(
+                    tf.multiply(xtx, f_old), 
+                    tf.matmul(tf.multiply(tf.transpose(x), f_new), y)
+                )
+            )
+            x = x - tf.matmul(
+                tf.transpose(covar_betahat),
+                c
+            )
+            x2.assign(tf.add(
+                    tf.multiply(x2, f_old), 
+                    tf.multiply(
+                        tf.sum(tf.math.square(x), axis = 0), 
+                        f_new
+                    )
+                )
+            )
+            y2.assign(tf.add(
+                    tf.multiply(y2, f_old), 
+                    tf.multiply(
+                        tf.sum(tf.math.square(y), axis = 0), 
+                        f_new
+                    )
+                )
+            )
+            xty.assign(tf.add(
+                    tf.multiply(xty, f_old), 
+                    tf.matmul(tf.multiply(tf.transpose(x), f_new), y)
+                )
+            )
+            n_processed += n_new
+        weights = tf.einsum(
+            'j,jk->jk', 
+            tf.math.reciprocal_no_nan(x2), 
+            xty
+        )
+        sd = tf.broadcast_to(y2, [xdim, ydim]) - 2 * coef * xty + tf.transpose(tf.broadcast_to(x2, [ydim, xdim]))
+        corr = tf.einsum(
+            'j,jk->jk', 
+            tf.math.reciprocal_no_nan(tf.math.sqrt(x2)), 
+            xtx
+        )
+        corr = tf.einsum(
+            'k,jk->jk', 
+            tf.math.reciprocal_no_nan(tf.math.sqrt(x2)), 
+            corr
+        )
+        zscores = weights / sd
+        abs_zs = tf.math.abs(abs_zs)
+        
+        corr_n = corr.numpy()
+        abs_zs_n = abs_zs.numpy()
+        sort_zs_order = tf.argsort(abs_zs_n, direction = 'DESCENDING')
+        selected_dict = { idx: 0 for idx in sort_zs_order }
+        # 0: not yet settled down
+        # 1: included
+        # -1: discarded
+        for curr_idx in sort_zs_order:
+            if sort_zs_order[curr_idx] == -1:
+                continue
+            elif sort_zs_order[curr_idx] == 0:
+                sort_zs_order[curr_idx] == 1
+                for possible_idx in range(xdim):
+                    if sort_zs_order[possible_idx] == 0:
+                        if corr_n[curr_idx, possible_idx] >= self.alpha:
+                            sort_zs_order[possible_idx] = -1
+            else:
+                ValueError('Something wrong: processing')
+        discarded_idx = []
+        for idx in range(xdim):
+            if sort_zs_order[idx] == 0:
+                ValueError('Something wrong: post') 
+            elif sort_zs_order[idx] == -1:
+                discarded_idx.append(idx) 
+        weights_pt = weights.numpy()
+        weights_pt[discarded_idx] = 0
+        n_covar = self.data_scheme.get_num_covariate()
+        n_pred = self.data_scheme.get_num_predictor()
+        n_lambda = len(self.lambda_seq[0])
+        beta_hat = np.empty((n_pred, n_model, n_lambda))
+        covar_hat = np.zeros((n_covar, n_model, n_lambda))
+        intercept_hat = np.zeros((1, n_model, n_lambda))
+        for mi, ml in enumerate(self.lambda_seq):
+            tmp = weights_pt[:, mi].copy()
+            for li, ll in enumerate(ml):
+                tmp2 = tmp.copy()
+                tmp2[abs_zs <= ll] = 0 
+                beta_hat[:, mi, li] = tmp2
+        self.beta_hat_path = tf.constant(beta_hat, tf.float32)
+        self.covar_hat_path = tf.constant(covar_hat, tf.float32)
+        self.intercept_path = tf.constant(intercept_hat, tf.float32)
+        
     def solve(self, checker, nepoch = 10, logging = None, x_check = None, y_check = None):
         '''
         Solve for a sequence of lambda and return a sequence of betahat (for x, covar, and intercept) correspondingly and the objective captured by checker (a list with num_outcomes number of checkers).

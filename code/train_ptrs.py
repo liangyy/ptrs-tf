@@ -161,6 +161,11 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_dict', default=None, help='''
         If want to use another definition of lambda sequence, specify it here.
     ''')
+    parser.add_argument('--pt_cutoffs', default=None, help='''
+        This option is effective only in training mode. 
+        If specified, it will run P+T mode instead. 
+        The p-value cutoffs should be ","-delimited.
+    ''')
     parser.add_argument('--split_yaml', default=None, help='''
         If set, it will split the test set accordingly and calculate the R2 for each split.
         The YAML should contain:
@@ -181,6 +186,7 @@ if __name__ == '__main__':
     import util_ElasticNet, lib_LinearAlgebra, util_hdf5, lib_ElasticNet, lib_Checker
     import tensorflow as tf
     import functools
+    import scipy.stats
     # from util_misc import load_ordered_yaml
 
 
@@ -263,7 +269,10 @@ if __name__ == '__main__':
         ### Training
         learning_rate = 1
         out_prefix = args.out_prefix
-
+        
+        if args.pt_cutoffs is not None:
+            z_cutoffs = [ scipy.stats.isf(float(i)) for i in args.pt_cutoffs.split(',') ]
+            
         for alpha in alpha_list:
             logging.info('alpha = {} starts'.format(alpha))
             if args.lambda_dict is None:
@@ -290,10 +299,13 @@ if __name__ == '__main__':
                 lambda_init_dict=lambda_init_dict,
                 updater=update_dic
             )
-            checker = [ lib_Checker.Checker(ntrain, train_batch, lib_Checker.my_stat_fun, my_stop_rule) 
-                       for i in range(ny) ]
+            if args.pt_cutoffs is None:
+                checker = [ lib_Checker.Checker(ntrain, train_batch, lib_Checker.my_stat_fun, my_stop_rule) 
+                           for i in range(ny) ]
 
-            elastic_net_estimator.solve(checker, nepoch=100, logging=logging)
+                elastic_net_estimator.solve(checker, nepoch=100, logging=logging)
+            else:
+                elastic_net_estimator.solve_pt(abs_z_cutoffs=z_cutoffs)
             
             outfile = f'{out_prefix}_{alpha}.hdf5'
             logging.info(f'alpha = {alpha} saving to {outfile}')
