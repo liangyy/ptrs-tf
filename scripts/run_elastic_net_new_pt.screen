@@ -1,7 +1,7 @@
 # computing environment setup
 source /vol/bmd/yanyul/miniconda3/etc/profile.d/conda.sh
 conda activate tensorflow
-source /home/yanyul/tensorflow_env.sh
+source /homes/yanyul/tensorflow_env_cuda9.sh
 export CUDA_VISIBLE_DEVICES=1
 
 thisdir=`pwd`

@@ -24,6 +24,7 @@ class DataScheme:
         self._update_indice(x_indice, 'x_indice', type = 'X')
         # self.num_predictors = self.get_num_predictor()
     def get_data_matrix(self, element, only_x = False, only_covar = False):
+        y = element[self.Y_index]
         if only_covar is False:
             x = element[self.X_index]
             if self.x_indice is not None:
@@ -33,7 +34,6 @@ class DataScheme:
                 x = tf.concat((x, covar), axis = 1)
         else:
             x = tf.gather(y, self.covariate_indice, axis = 1)
-        y = element[self.Y_index]
         y = tf.gather(y, self.outcome_indice, axis = 1) 
         return x, y
     def get_data_matrix_x_in_cnn(self, element):
@@ -605,7 +605,7 @@ class ElasticNetEstimator:
         Step 2: Calculate correlation between genes.
         Step 3: Performing P+T.
         '''
-        self.lambda_seq = [ abs_z_cutoffs.copy() for self.data_scheme.get_num_outcome() ]
+        self.lambda_seq = [ abs_z_cutoffs.copy() for i in self.data_scheme.get_num_outcome() ]
         svd = SVDInstance(rcond)
         logging.info('Don\'t support normalization.')
         self.normalizer = False
