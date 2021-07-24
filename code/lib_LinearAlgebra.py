@@ -734,32 +734,35 @@ class ElasticNetEstimator:
         zscores = weights / sd
         abs_zs = tf.math.abs(zscores)
         
+        weights_pt = weights.numpy()
         corr_n = corr.numpy()
         abs_zs_n = abs_zs.numpy()
-        sort_zs_order = tf.argsort(abs_zs_n, direction = 'DESCENDING')
-        selected_dict = { idx: 0 for idx in sort_zs_order }
-        # 0: not yet settled down
-        # 1: included
-        # -1: discarded
-        for curr_idx in sort_zs_order:
-            if sort_zs_order[curr_idx] == -1:
-                continue
-            elif sort_zs_order[curr_idx] == 0:
-                sort_zs_order[curr_idx] == 1
-                for possible_idx in range(xdim):
-                    if sort_zs_order[possible_idx] == 0:
-                        if corr_n[curr_idx, possible_idx] >= self.alpha:
-                            sort_zs_order[possible_idx] = -1
-            else:
-                ValueError('Something wrong: processing')
-        discarded_idx = []
-        for idx in range(xdim):
-            if sort_zs_order[idx] == 0:
-                ValueError('Something wrong: post') 
-            elif sort_zs_order[idx] == -1:
-                discarded_idx.append(idx) 
-        weights_pt = weights.numpy()
-        weights_pt[discarded_idx] = 0
+        for trait_idx in range(abs_zs_n.shape[1]):
+            sort_zs_order = np.argsort(-abs_zs_n[:, trait_idx])
+            selected_dict = { idx: 0 for idx in sort_zs_order }
+            # 0: not yet settled down
+            # 1: included
+            # -1: discarded
+            for curr_idx in sort_zs_order:
+                if sort_zs_order[curr_idx] == -1:
+                    continue
+                elif sort_zs_order[curr_idx] == 0:
+                    sort_zs_order[curr_idx] == 1
+                    for possible_idx in range(xdim):
+                        if sort_zs_order[possible_idx] == 0:
+                            if corr_n[curr_idx, possible_idx] >= self.alpha:
+                                sort_zs_order[possible_idx] = -1
+                else:
+                    ValueError('Something wrong: processing')
+            discarded_idx = []
+            for idx in range(xdim):
+                if sort_zs_order[idx] == 0:
+                    ValueError('Something wrong: post') 
+                elif sort_zs_order[idx] == -1:
+                    discarded_idx.append(idx) 
+            weights_pt[discarded_idx, trait_idx] = 0
+        breakpoint()
+            
         n_covar = self.data_scheme.get_num_covariate()
         n_pred = self.data_scheme.get_num_predictor()
         n_lambda = len(self.lambda_seq[0])
