@@ -271,7 +271,7 @@ if __name__ == '__main__':
         out_prefix = args.out_prefix
         
         if args.pt_cutoffs is not None:
-            z_cutoffs = [ scipy.stats.isf(float(i)) for i in args.pt_cutoffs.split(',') ]
+            z_cutoffs = [ scipy.stats.norm.isf(float(i)) for i in args.pt_cutoffs.split(',') ]
             
         for alpha in alpha_list:
             logging.info('alpha = {} starts'.format(alpha))

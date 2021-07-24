@@ -595,9 +595,9 @@ class ElasticNetEstimator:
             y_dim = n_outcome
             if self.intercept is True:
                 c_dim += 1  
-            return (x_dim, y_dim)
+            return x_dim, c_dim, y_dim
     
-    def solve_pt(self, abs_z_cutoffs = [ 0.1, 1 ], rcond = 1e-10, logging = None):
+    def solve_pt(self, abs_z_cutoffs = [ 0.1, 1 ], rcond = 1e-10, scaling = True):
         '''
         Solve P+T with self.alpha being interpreted as R2 cutoff.
         Step 1: Run linear regression y ~ gene_i + covars for one gene at a time
@@ -605,20 +605,22 @@ class ElasticNetEstimator:
         Step 2: Calculate correlation between genes.
         Step 3: Performing P+T.
         '''
-        self.lambda_seq = [ abs_z_cutoffs.copy() for i in self.data_scheme.get_num_outcome() ]
+        self.lambda_seq = [ abs_z_cutoffs.copy() for i in range(self.data_scheme.get_num_outcome()) ]
         svd = SVDInstance(rcond)
-        logging.info('Don\'t support normalization.')
+        print('Don\'t support normalization.')
         self.normalizer = False
-        logging.info('Add intercept.')
+        print('Add intercept.')
         self.intercept = True
         xdim, cdim, ydim = self._out_dim_covar()
         ctc = tf.Variable(initial_value = tf.zeros([cdim, cdim], tf.float32))
         ctx = tf.Variable(initial_value = tf.zeros([cdim, xdim], tf.float32))
+        cty = tf.Variable(initial_value = tf.zeros([cdim, ydim], tf.float32))
         n_processed = 0
         for ele in self.data_scheme.dataset:
             x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
             c, _ = self.data_scheme.get_data_matrix(ele, only_covar = True)
-            c = self._prep_for_intercept(c)
+            # c = self._prep_for_intercept(c)
+            c = tf.concat((tf.ones([c.shape[0], 1], tf.float32), c), axis = 1)
             n_new = x.shape[0]
             n_old = n_processed
             # val_old_mean * (n_old / (n_old + n_new)) + val_new_sum / (n_old + n_new) 
@@ -638,12 +640,17 @@ class ElasticNetEstimator:
                     tf.matmul(tf.multiply(tf.transpose(c), f_new), x)
                 )
             )
+            cty.assign(tf.add(
+                    tf.multiply(cty, f_old),
+                    tf.matmul(tf.multiply(tf.transpose(c), f_new), y)
+                )
+            )
             n_processed += n_new
-        # svd on xtx
+        # svd on ctc
         svd.solve(ctc)
         
         # calculate beta hat
-        covar_betahat = tf.matmul(
+        covar_betahat_x = tf.matmul(
             tf.matmul(
                 tf.matmul(
                     svd.v, 
@@ -652,6 +659,16 @@ class ElasticNetEstimator:
                 tf.transpose(svd.u)
             ), 
             ctx
+        )
+        covar_betahat = tf.matmul(
+            tf.matmul(
+                tf.matmul(
+                    svd.v,
+                    tf.linalg.tensor_diag(tf.math.reciprocal_no_nan(svd.s))
+                ),
+                tf.transpose(svd.u)
+            ),
+            cty
         )
         
         x2 = tf.Variable(initial_value = tf.zeros([xdim], tf.float32))
@@ -662,19 +679,24 @@ class ElasticNetEstimator:
         for ele in self.data_scheme.dataset:
             x, y = self.data_scheme.get_data_matrix(ele, only_x = True)
             c, _ = self.data_scheme.get_data_matrix(ele, only_covar = True)
+            c = tf.concat((tf.ones([c.shape[0], 1], tf.float32), c), axis = 1)
             xtx.assign(tf.add(
                     tf.multiply(xtx, f_old), 
-                    tf.matmul(tf.multiply(tf.transpose(x), f_new), y)
+                    tf.matmul(tf.multiply(tf.transpose(x), f_new), x)
                 )
             )
             x = x - tf.matmul(
-                tf.transpose(covar_betahat),
-                c
+                c,
+                covar_betahat_x,
+            )
+            y = y - tf.matmul(
+                c,
+                covar_betahat,
             )
             x2.assign(tf.add(
                     tf.multiply(x2, f_old), 
                     tf.multiply(
-                        tf.sum(tf.math.square(x), axis = 0), 
+                        tf.reduce_sum(tf.math.square(x), axis = 0), 
                         f_new
                     )
                 )
@@ -682,7 +704,7 @@ class ElasticNetEstimator:
             y2.assign(tf.add(
                     tf.multiply(y2, f_old), 
                     tf.multiply(
-                        tf.sum(tf.math.square(y), axis = 0), 
+                        tf.reduce_sum(tf.math.square(y), axis = 0), 
                         f_new
                     )
                 )
@@ -698,7 +720,7 @@ class ElasticNetEstimator:
             tf.math.reciprocal_no_nan(x2), 
             xty
         )
-        sd = tf.broadcast_to(y2, [xdim, ydim]) - 2 * coef * xty + tf.transpose(tf.broadcast_to(x2, [ydim, xdim]))
+        sd = tf.broadcast_to(y2, [xdim, ydim]) - 2 * weights * xty + tf.transpose(tf.broadcast_to(x2, [ydim, xdim]))
         corr = tf.einsum(
             'j,jk->jk', 
             tf.math.reciprocal_no_nan(tf.math.sqrt(x2)), 
@@ -710,7 +732,7 @@ class ElasticNetEstimator:
             corr
         )
         zscores = weights / sd
-        abs_zs = tf.math.abs(abs_zs)
+        abs_zs = tf.math.abs(zscores)
         
         corr_n = corr.numpy()
         abs_zs_n = abs_zs.numpy()
@@ -751,8 +773,8 @@ class ElasticNetEstimator:
                 tmp2[abs_zs <= ll] = 0 
                 beta_hat[:, mi, li] = tmp2
         self.beta_hat_path = tf.constant(beta_hat, tf.float32)
-        self.covar_hat_path = tf.constant(covar_hat, tf.float32)
-        self.intercept_path = tf.constant(intercept_hat, tf.float32)
+        self.covar_hat_path = tf.constant(covar_hat[1:, :], tf.float32)
+        self.intercept_path = tf.constant(intercept_hat[0, :], tf.float32)
         
     def solve(self, checker, nepoch = 10, logging = None, x_check = None, y_check = None):
         '''
