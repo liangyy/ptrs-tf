@@ -744,21 +744,21 @@ class ElasticNetEstimator:
             # 1: included
             # -1: discarded
             for curr_idx in sort_zs_order:
-                if sort_zs_order[curr_idx] == -1:
+                if selected_dict[curr_idx] == -1:
                     continue
-                elif sort_zs_order[curr_idx] == 0:
-                    sort_zs_order[curr_idx] == 1
+                elif selected_dict[curr_idx] == 0:
+                    selected_dict[curr_idx] == 1
                     for possible_idx in range(xdim):
-                        if sort_zs_order[possible_idx] == 0:
+                        if selected_dict[possible_idx] == 0:
                             if corr_n[curr_idx, possible_idx] >= self.alpha:
-                                sort_zs_order[possible_idx] = -1
+                                selected_dict[possible_idx] = -1
                 else:
-                    ValueError('Something wrong: processing')
+                    raise ValueError('Something wrong: processing')
             discarded_idx = []
             for idx in range(xdim):
-                if sort_zs_order[idx] == 0:
-                    ValueError('Something wrong: post') 
-                elif sort_zs_order[idx] == -1:
+                if selected_dict[idx] == 0:
+                    raise ValueError('Something wrong: post') 
+                elif selected_dict[idx] == -1:
                     discarded_idx.append(idx) 
             weights_pt[discarded_idx, trait_idx] = 0
         breakpoint()
