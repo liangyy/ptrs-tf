@@ -672,6 +672,7 @@ class ElasticNetEstimator:
         )
         
         x2 = tf.Variable(initial_value = tf.zeros([xdim], tf.float32))
+        x2o = tf.Variable(initial_value = tf.zeros([xdim], tf.float32))
         xty = tf.Variable(initial_value = tf.zeros([xdim, ydim], tf.float32))
         y2 = tf.Variable(initial_value = tf.zeros([ydim], tf.float32))
         xtx = tf.Variable(initial_value = tf.zeros([xdim, xdim], tf.float32))
@@ -683,6 +684,14 @@ class ElasticNetEstimator:
             xtx.assign(tf.add(
                     tf.multiply(xtx, f_old), 
                     tf.matmul(tf.multiply(tf.transpose(x), f_new), x)
+                )
+            )
+            x2o.assign(tf.add(
+                    tf.multiply(x2o, f_old),
+                    tf.multiply(
+                        tf.reduce_sum(tf.math.square(x), axis = 0),
+                        f_new
+                    )
                 )
             )
             x = x - tf.matmul(
@@ -723,12 +732,12 @@ class ElasticNetEstimator:
         sd = tf.broadcast_to(y2, [xdim, ydim]) - 2 * weights * xty + tf.transpose(tf.broadcast_to(x2, [ydim, xdim]))
         corr = tf.einsum(
             'j,jk->jk', 
-            tf.math.reciprocal_no_nan(tf.math.sqrt(x2)), 
+            tf.math.reciprocal_no_nan(tf.math.sqrt(x2o)), 
             xtx
         )
         corr = tf.einsum(
             'k,jk->jk', 
-            tf.math.reciprocal_no_nan(tf.math.sqrt(x2)), 
+            tf.math.reciprocal_no_nan(tf.math.sqrt(x2o)), 
             corr
         )
         zscores = weights / sd
@@ -747,7 +756,7 @@ class ElasticNetEstimator:
                 if selected_dict[curr_idx] == -1:
                     continue
                 elif selected_dict[curr_idx] == 0:
-                    selected_dict[curr_idx] == 1
+                    selected_dict[curr_idx] = 1
                     for possible_idx in range(xdim):
                         if selected_dict[possible_idx] == 0:
                             if corr_n[curr_idx, possible_idx] >= self.alpha:
@@ -761,7 +770,6 @@ class ElasticNetEstimator:
                 elif selected_dict[idx] == -1:
                     discarded_idx.append(idx) 
             weights_pt[discarded_idx, trait_idx] = 0
-        breakpoint()
             
         n_covar = self.data_scheme.get_num_covariate()
         n_pred = self.data_scheme.get_num_predictor()
