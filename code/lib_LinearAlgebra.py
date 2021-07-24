@@ -773,7 +773,9 @@ class ElasticNetEstimator:
             
         n_covar = self.data_scheme.get_num_covariate()
         n_pred = self.data_scheme.get_num_predictor()
+        n_model = len(self.model)
         n_lambda = len(self.lambda_seq[0])
+        breakpoint()
         beta_hat = np.empty((n_pred, n_model, n_lambda))
         covar_hat = np.zeros((n_covar, n_model, n_lambda))
         intercept_hat = np.zeros((1, n_model, n_lambda))
