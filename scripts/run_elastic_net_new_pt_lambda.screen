@@ -2,7 +2,7 @@
 source /lambda_stor/homes/yanyu.liang/conda_init.sh
 conda activate tensorflow
 # source /homes/yanyul/tensorflow_env_cuda9.sh
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=2
 
 thisdir=`pwd`
 
