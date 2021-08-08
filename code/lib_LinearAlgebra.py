@@ -768,7 +768,7 @@ class ElasticNetEstimator:
                     selected_dict[curr_idx] = 1
                     for possible_idx in range(xdim):
                         if selected_dict[possible_idx] == 0:
-                            if corr_n[curr_idx, possible_idx] >= self.alpha:
+                            if (corr_n[curr_idx, possible_idx] ** 2) >= self.alpha:
                                 selected_dict[possible_idx] = -1
                 else:
                     raise ValueError('Something wrong: processing')
