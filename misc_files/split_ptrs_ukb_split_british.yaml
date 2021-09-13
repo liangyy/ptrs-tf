@@ -1,5 +1,5 @@
 pheno_csv:
-  file_path: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/new_query_phenotypes_cleaned_up.csv'
+  file_path: '/lambda_stor/data/yanyul/GitHub/ptrs-ukb/output/new_query_phenotypes_cleaned_up.csv'
   sample_col: 'eid'
   output_col:
     - age_recruitment
@@ -49,9 +49,9 @@ indiv_list:
     # African: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/new_data_split/African.txt'
     # # Chinese: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/new_data_split/Chinese.txt'
     # Indian: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/new_data_split/Indian.txt'
-    British-validation: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/British-validation-1.txt'
-    British-test: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/British-test-1.txt'
-    British-train: '/vol/bmd/yanyul/GitHub/ptrs-ukb/output/data_split/British-training-1.txt'
+    British-validation: '/lambda_stor/data/yanyul/GitHub/ptrs-ukb/output/data_split/British-validation-1.txt'
+    British-test: '/lambda_stor/data/yanyul/GitHub/ptrs-ukb/output/data_split/British-test-1.txt'
+    British-train: '/lambda_stor/data/yanyul/GitHub/ptrs-ukb/output/data_split/British-training-1.txt'
   sample_col: 'IID'
   sep: ' '
 pred_expr_hdf5:

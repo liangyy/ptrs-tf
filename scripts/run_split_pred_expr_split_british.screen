@@ -15,6 +15,7 @@ MYYAML=$2
 PREFIXOUT=$3
 
 # code chunk
+mkdir -p $WORKDIR
 cd $WORKDIR
 echo 'Hello!, splitting is about to start'
 python $CODEDIR/split_pred_expr.py \
