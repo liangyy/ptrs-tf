@@ -1,0 +1,25 @@
+# ARGS1: hdf5 file path
+# ARGS2: yaml file path
+# ARGS3: prefix of output
+
+# computing environment setup
+source /lambda_stor/homes/yanyu.liang/conda_init.sh
+conda activate tensorflow
+export CUDA_VISIBLE_DEVICES=0
+
+# pre-specifics
+WORKDIR=/lambda_stor/data/yanyul/washington_UKB/predicted_expression_tf2_split_british
+CODEDIR=/lambda_stor/data/yanyul/GitHub/ptrs-tf/code
+MYHDF5=$1
+MYYAML=$2
+PREFIXOUT=$3
+
+# code chunk
+cd $WORKDIR
+echo 'Hello!, splitting is about to start'
+python $CODEDIR/split_pred_expr.py \
+  --output-prefix $PREFIXOUT \
+  --yaml-of-inputs $MYYAML \
+  --hdf5-input $MYHDF5 \
+  > $PREFIXOUT.log 2>&1
+

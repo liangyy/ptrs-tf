@@ -163,3 +163,13 @@ myyaml=/vol/bmd/yanyul/GitHub/ptrs-tf/misc_files/split_ptrs_ukb_new_updated2_ind
 prefixout=ukb_imp_x_MESA_ALL
 screen -dmS split-$prefixout bash run_split_pred_expr_new_updated2_indivs.screen $myhdf5 $myyaml $prefixout
 ```
+
+Split British
+
+```
+# GTEx Whole_Blood
+myhdf5=/lambda_stor/data/yanyul/washington_UKB/predicted_expression/predicted_expression.ukb_imp_x_ctimp_Whole_Blood.h5
+myyaml=/lambda_stor/data/yanyul/GitHub/ptrs-tf/misc_files/split_ptrs_ukb_split_british.yaml
+prefixout=ukb_imp_x_ctimp_Whole_Blood
+screen -dmS split-$prefixout bash run_split_pred_expr_split_british.screen $myhdf5 $myyaml $prefixout
+```
