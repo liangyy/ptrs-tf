@@ -15,26 +15,35 @@ def _pr2_format(ele, features, name, alpha, lambda_):
     f_seq = np.repeat(features, nlambda)
     return pd.DataFrame({'partial_r2': ele_seq, 'trait': f_seq, 'sample': name, 'alpha': alpha, 'lambda': lambda_seq})
 
-# def predict_only(alpha_list, model_list, dataset_dict, simple=False):
-#     res = {}
-#     for alpha in alpha_list:
-#         res[alpha] = {}
-#         model_i = model_list[alpha]
-#         for i in dataset_dict.keys():
-#             dataset = dataset_dict[i]
-#             if simple is False:
-#                 for ele in dataset:
-#                     x, y = model_i.data_scheme.get_data_matrix(ele)
-#                     covar = x[:, -len(model_i.data_scheme.covariate_indice) :]
-#                     print('alpha = {}, trait = {}, ncol(covar) = {}'.format(alpha, i, covar.shape[1]))
-#                 out = model_i.predict_x(dataset, model_i.beta_hat_path)
-#             else:
-#                 out = {}
-#                 covar, out['y'], out['y_pred_from_x'] = dataset
-#             res[alpha][i] = pd.DataFrame(
-#                 out['y_pred_from_x'], 
-#                 columns=[ f'hyper_param_{i}' for i in range(out['y_pred_from_x'].shape[1]) ])
-#             res[alpha][i][['eid']] =             
+def predict_only(alpha_list, model_list, dataset_dict, dataset_eid_dict, features, simple=False):
+    res = []
+    for alpha in alpha_list:
+        res[alpha] = {}
+        model_i = model_list[alpha]
+        for i in dataset_dict.keys():
+            if i not in dataset_eid_dict:
+                continue
+            dataset = dataset_dict[i]
+            if simple is False:
+                for ele in dataset:
+                    x, y = model_i.data_scheme.get_data_matrix(ele)
+                    covar = x[:, -len(model_i.data_scheme.covariate_indice) :]
+                    print('alpha = {}, trait = {}, ncol(covar) = {}'.format(alpha, i, covar.shape[1]))
+                out = model_i.predict_x(dataset, model_i.beta_hat_path)
+            else:
+                out = {}
+                covar, out['y'], out['y_pred_from_x'] = dataset
+            tmp_flat = []
+            for fidx, feature in enumerate(features):
+                tmp = pd.DataFrame(
+                    out['y_pred_from_x'][:, fidx, :], 
+                    columns=[ f'alpha_{alpha}_feature_{feature}_hyper_param_{j}' for j in range(out['y_pred_from_x'].shape[2]) ])
+                tmp_flat.append(tmp)
+            tmp_flat = pd.concat(tmp_flat, axis=1)
+            tmp_flat['eid'] = dataset_eid_dict[i]
+            res.append(tmp_flat)    
+    res = pd.concat(res, axis=0)
+    return res   
 
 def get_partial_r2(alpha_list, model_list, dataset_dict, features, binary=False, split_yaml=None, simple=False):
     if split_yaml is None:
@@ -142,6 +151,9 @@ if __name__ == '__main__':
     ''')
     parser.add_argument('--all_training', action='store_true', help='''
         If set, all data will be used for training. --size_of_data_to_hold won't be effective.
+    ''')
+    parser.add_argument('--prediction_only', action='store_true', help='''
+        Do prediction if specified.
     ''')
     parser.add_argument('--data_hdf5', help='''
         Data in HDF5. 
@@ -256,18 +268,21 @@ if __name__ == '__main__':
                 }
             else:
                 dataset_dict = { f'{data_name}_insample': d_insample }
+            dataset_eid_dict = {}
             if args.data_hdf5_predict is not None:
                 batch_size_here = 8096
                 for data_pred in args.data_hdf5_predict:
                     data_pred_name, data_pred_hdf5 = parse_data_args(data_pred)
-                    data_scheme, _ = util_hdf5.build_data_scheme(
+                    data_scheme, _, data_eid = util_hdf5.build_data_scheme(
                         data_pred_hdf5, 
                         args.data_scheme_yaml, 
                         batch_size=batch_size_here, 
                         inv_norm_y=inv_y,
-                        x_indice=x_indice
+                        x_indice=x_indice, 
+                        return_eid=True
                     )
                     dataset_dict[data_pred_name] = data_scheme.dataset
+                    dataset_eid_dict[data_pred_name] = data_eid
             if args.against_hdf5 is not None:
                 if args.all_training is False:
                     dataset_aga_dict = {
@@ -277,18 +292,21 @@ if __name__ == '__main__':
                     }
                 else:
                     dataset_dict = { f'{data_name}_insample': d_insample }
+                dataset_aga_eid_dict = {}
                 if args.against_hdf5_predict is not None:
                     batch_size_here = 8096
                     for against_pred in args.against_hdf5_predict:
                         against_pred_name, against_pred_hdf5 = parse_data_args(against_pred)
-                        data_scheme, _ = util_hdf5.build_data_scheme(
+                        data_scheme, _, data_eid = util_hdf5.build_data_scheme(
                             against_pred_hdf5, 
                             args.data_scheme_yaml, 
                             batch_size=batch_size_here, 
                             inv_norm_y=inv_y,
-                            x_indice=x_indice_aga
+                            x_indice=x_indice_aga, 
+                            return_eid=True
                         )
                         dataset_aga_dict[against_pred_name] = data_scheme.dataset
+                        dataset_aga_eid_dict[data_pred_name] = data_eid
         else:
             gene_list, trait_list, covar_list = prep_dataset_from_hdf5(
                 data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
@@ -346,29 +364,46 @@ if __name__ == '__main__':
             logging.info('alpha = {} ends'.format(alpha))
     else:
         if args.export is False:
-            ### Predict and get partial r2
-            ### Do data_hdf5 first and then do against_hdf5 if needed
-            res_list = []
-            df = get_partial_r2(alpha_list, model_list, dataset_dict, features[trait_indice], binary=args.binary, split_yaml=args.split_yaml)
-            df['pred_expr_source'] = 'train'
-            res_list.append(df)
-            
-            ### Then do against_hdf5
-            if args.against_hdf5 is not None:
-                # we need to first change the order of data to be loaded to match the against. 
-                for alpha in alpha_list:
-                    model_list[alpha].data_scheme.x_indice = x_indice_aga
-                
-                df = get_partial_r2(
-                    alpha_list, model_list, dataset_aga_dict, features[trait_indice],
-                    binary=args.binary, split_yaml=args.split_yaml
-                )
-                df['pred_expr_source'] = 'against'
+            if args.prediction_only is False:
+                ### Predict and get partial r2
+                ### Do data_hdf5 first and then do against_hdf5 if needed
+                res_list = []
+                df = get_partial_r2(alpha_list, model_list, dataset_dict, features[trait_indice], binary=args.binary, split_yaml=args.split_yaml)
+                df['pred_expr_source'] = 'train'
                 res_list.append(df)
-            
-            res = pd.concat(res_list, axis=0)
-            
-            res.to_csv(args.out_prefix + '.performance.csv', index=False)
+                
+                ### Then do against_hdf5
+                if args.against_hdf5 is not None:
+                    # we need to first change the order of data to be loaded to match the against. 
+                    for alpha in alpha_list:
+                        model_list[alpha].data_scheme.x_indice = x_indice_aga
+                    
+                    df = get_partial_r2(
+                        alpha_list, model_list, dataset_aga_dict, features[trait_indice],
+                        binary=args.binary, split_yaml=args.split_yaml
+                    )
+                    df['pred_expr_source'] = 'against'
+                    res_list.append(df)
+                
+                res = pd.concat(res_list, axis=0)
+                
+                res.to_csv(args.out_prefix + '.performance.csv', index=False)
+            else:
+                res_list = []
+                df = predict_only(
+                    alpha_list, model_list, dataset_dict,
+                    dataset_eid_dict, features[trait_indice])
+                df['pred_expr_source'] = 'train'
+                res_list.append(df)
+                if args.against_hdf5 is not None:
+                    for alpha in alpha_list:
+                        model_list[alpha].data_scheme.x_indice = x_indice_aga
+                        df = predict_only(
+                            alpha_list, model_list, dataset_aga_dict, features[trait_indice])
+                        df['pred_expr_source'] = 'against'
+                        res_list.append(df)
+                res = pd.concat(res_list, axis=0)
+                res.to_csv(args.out_prefix + '.prediction.csv', index=False, compression='gzip')
         else:
             model_list = {}
             for alpha in alpha_list:

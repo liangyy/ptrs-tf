@@ -1,0 +1,42 @@
+# computing environment setup
+source /lambda_stor/homes/yanyu.liang/conda_init.sh
+conda activate tensorflow
+# source /home/yanyul/tensorflow_env.sh
+export CUDA_VISIBLE_DEVICES=1
+
+thisdir=`pwd`
+
+# pre-specifics
+WORKDIR=/lambda_stor/data/yanyul/GitHub/ptrs-tf/code
+cd $WORKDIR
+
+# params
+holdout_size=5000
+train_hdf5=/lambda_stor/data/yanyul/washington_UKB/predicted_expression_tf2_split_british/ukb_imp_x_ctimp_Whole_Blood_British-train.hdf5
+data_scheme=/lambda_stor/data/yanyul/GitHub/ptrs-tf/misc_files/data_scheme.yaml
+pred_model=/lambda_stor/data/yanyul/washington_UKB/ptrs-tf/models_new/elastic_net_ptrs_gtex_british_split_british_{alpha}.hdf5
+af_hdf5=/lambda_stor/data/yanyul/washington_UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_ctimp_Whole_Blood_African.hdf5
+ch_hdf5=/lambda_stor/data/yanyul/washington_UKB/predicted_expression_tf2_new/ukb_imp_x_ctimp_Whole_Blood_Chinese.hdf5
+in_hdf5=/lambda_stor/data/yanyul/washington_UKB/predicted_expression_tf2_new_updated_indivs/ukb_imp_x_ctimp_Whole_Blood_Indian.hdf5
+br_valid_hdf5=/lambda_stor/data/yanyul/washington_UKB/predicted_expression_tf2_split_british/ukb_imp_x_ctimp_Whole_Blood_British-validation.hdf5
+br_test_hdf5=/lambda_stor/data/yanyul/washington_UKB/predicted_expression_tf2_split_british/ukb_imp_x_ctimp_Whole_Blood_British-test.hdf5
+split_yaml=/lambda_stor/data/yanyul/GitHub/ptrs-tf/misc_files/eval_split.yaml
+
+# output
+OUTDIR=/lambda_stor/data/yanyul/washington_UKB/ptrs-tf/models_new
+tag=elastic_net_ptrs_gtex_british_split_british_w_split_lambda_prediction
+logfile=$OUTDIR/$tag.pred.log
+
+python train_ptrs.py \
+  --logfile $logfile \
+  --out_prefix $OUTDIR/$tag \
+  --size_of_data_to_hold $holdout_size \
+  --data_hdf5 British:$train_hdf5 \
+  --data_scheme_yaml $data_scheme \
+  --prediction_model $pred_model \
+  --data_hdf5_predict African:$af_hdf5 Chinese:$ch_hdf5 Indian:$in_hdf5 British_valid:$br_valid_hdf5 British_test:$br_test_hdf5 \
+  --alpha_seq 0.1 \
+  --split_yaml $split_yaml \
+  --all_training \
+  --prediction_only \
+  > $thisdir/pred_elastic_net_split_british_w_split_lambda_prediction.log 2>&1
