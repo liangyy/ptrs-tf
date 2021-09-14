@@ -18,7 +18,6 @@ def _pr2_format(ele, features, name, alpha, lambda_):
 def predict_only(alpha_list, model_list, dataset_dict, dataset_eid_dict, features, simple=False):
     res = []
     for alpha in alpha_list:
-        res[alpha] = {}
         model_i = model_list[alpha]
         for i in dataset_dict.keys():
             if i not in dataset_eid_dict:
@@ -403,7 +402,7 @@ if __name__ == '__main__':
                         df['pred_expr_source'] = 'against'
                         res_list.append(df)
                 res = pd.concat(res_list, axis=0)
-                res.to_csv(args.out_prefix + '.prediction.csv', index=False, compression='gzip')
+                res.to_csv(args.out_prefix + '.prediction.csv.gz', index=False, compression='gzip')
         else:
             model_list = {}
             for alpha in alpha_list:
