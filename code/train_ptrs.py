@@ -248,11 +248,14 @@ if __name__ == '__main__':
                 model_list[alpha] = lib_LinearAlgebra.ElasticNetEstimator('', None, minimal_load=True)
                 model_list[alpha].minimal_load(filename)
             
-            dataset_dict = {
-                f'{data_name}_valid': d_valid,
-                f'{data_name}_test': d_test,
-                f'{data_name}_insample': d_insample
-            }
+            if args.all_training is False:
+                dataset_dict = {
+                    f'{data_name}_valid': d_valid,
+                    f'{data_name}_test': d_test,
+                    f'{data_name}_insample': d_insample
+                }
+            else:
+                dataset_dict = { f'{data_name}_insample': d_insample }
             if args.data_hdf5_predict is not None:
                 batch_size_here = 8096
                 for data_pred in args.data_hdf5_predict:
@@ -266,11 +269,14 @@ if __name__ == '__main__':
                     )
                     dataset_dict[data_pred_name] = data_scheme.dataset
             if args.against_hdf5 is not None:
-                dataset_aga_dict = {
-                    f'{against_name}_valid': d_valid_aga,
-                    f'{against_name}_test': d_test_aga,
-                    f'{against_name}_insample': d_insample_aga
-                }
+                if args.all_training is False:
+                    dataset_aga_dict = {
+                        f'{against_name}_valid': d_valid_aga,
+                        f'{against_name}_test': d_test_aga,
+                        f'{against_name}_insample': d_insample_aga
+                    }
+                else:
+                    dataset_dict = { f'{data_name}_insample': d_insample }
                 if args.against_hdf5_predict is not None:
                     batch_size_here = 8096
                     for against_pred in args.against_hdf5_predict:
