@@ -69,6 +69,9 @@ if __name__ == '__main__':
     parser.add_argument('--prs_table', default=None, help='''
         Path to PRS table.
     ''')
+    parser.add_argument('--ptrs_table', default=None, help='''
+        Path to PTRS table.
+    ''')
     parser.add_argument('--binary', action='store_true', help='''
         If specified, it will treat the yobs as binary values.
         And do partial R2 calculation based on logistic regression.
@@ -91,6 +94,9 @@ if __name__ == '__main__':
     parser.add_argument('--prs_col_pattern', help='''
         PRS column name pattern (contain {trait} as a wildcard).
     ''')
+    parser.add_argument('--ptrs_col_pattern', help='''
+        PTRS column name pattern (contain {trait} as a wildcard).
+    ''')
     args = parser.parse_args()
  
     import logging, time, sys, os, re
@@ -110,6 +116,14 @@ if __name__ == '__main__':
     df_prs = pd.read_csv(args.prs_table, sep='\t', compression='gzip')
     df_prs['s'] = df_prs['s'].astype('str')
     ntotal = df_prs.shape[1] - 1
+    
+    if args.ptrs_table is not None:
+        logging.info('Loading PTRS table.')
+        df_ptrs = pd.read_csv(args.ptrs_table, compression='gzip')
+        df_ptrs['eid'] = df_ptrs['eid'].astype('str')
+        df_ptrs_new = pd.DataFrame({'eid': df_prs.s})
+        df_ptrs = pd.merge(df_ptrs_new, df_ptrs, on='eid')
+        ntotal_ptrs = df_ptrs.shape[1] - 1
     
     logging.info('Collecting y, yp, and covar by population.')
     collect_dic = {}
@@ -132,28 +146,57 @@ if __name__ == '__main__':
         npoints = ntotal // npheno
         prs_collector = np.empty((reference_mat.shape[0], npheno, npoints))
         hypers = []
+        if args.ptrs_table is not None:
+            npoints_ptrs = ntotal_ptrs // npheno
+            ptrs_collector = np.empty((reference_mat.shape[0], npheno, npoints_ptrs))
+            hypers_ptrs = []
+            model_list = { 'NA': None }
         for i in range(len(pheno_list)):
             trait = pheno_list[i]
             cols = []
+            colname_j = '^' + args.prs_col_pattern.format(trait=trait)
             for j in list(df_prs.columns):
-                colname_j = '^' + args.prs_col_pattern.format(trait=trait)
                 jj = '^' + j
                 if colname_j in jj:
                     cols.append(j)
             prs_mat = df_prs[['s'] + cols]
             out_mat = reference_mat.join(prs_mat.set_index('s'), on='indiv').iloc[:, 1:]
             out_mat = out_mat.to_numpy()
-            prs_collector[:, i, :] = out_mat
+            prs_collector[:, i, :] = out_mat   
             prs_names = [ re.sub(colname_j, '', i) for i in cols ]
-            hypers.append(prs_names)
+            hypers.append(prs_names) 
+            if args.ptrs_table is not None:
+                cols_ptrs = []
+                colname_ptrs_j = '^' + args.ptrs_col_pattern.format(trait=trait)
+                for j in list(df_ptrs.columns):
+                    jj = '^' + j
+                    if colname_ptrs_j in jj:
+                        cols_ptrs.append(j)
+                ptrs_mat = df_ptrs[['eid'] + cols_ptrs]
+                out_mat = reference_mat.join(ptrs_mat.set_index('eid'), on='indiv').iloc[:, 1:]
+                out_mat = out_mat.to_numpy()
+                ptrs_collector[:, i, :] = out_mat 
+                ptrs_names = [ re.sub(colname_ptrs_j, '', i) for i in cols_ptrs ]
+                hypers_ptrs.append(ptrs_names)   
         if model_list['NA'] is None:
-            model_list['NA'] = hypers
+            if args.ptrs_table is None:
+                model_list['NA'] = hypers
+            else:
+                hyper_pairs = []
+                for h1 in hypers:
+                    for h2 in hypers_ptrs:
+                        hyper_pairs.append(f'{h1}_x_{h2}')
+                model_list['NA'] = hyper_pairs
         else:
-            check_eq2(model_list['NA'], hypers)
+            check_eq2(model_list['NA'], hyper_pairs)
         dataset_dict[data_pred_name] = (covar, y, prs_collector)
+        if args.ptrs_table is None:
+            dataset_dict_2 = None
+        else:
+            dataset_dict_2[data_pred_name] = (None, None, ptrs_collector)
         
     logging.info('Calculating partial r2.')
-    df = get_partial_r2(alpha_list, model_list, dataset_dict, pheno_list, binary=args.binary, split_yaml=args.split_yaml, simple=True)      
+    df = get_partial_r2(alpha_list, model_list, dataset_dict, pheno_list, binary=args.binary, split_yaml=args.split_yaml, simple=True, dataset_dict_2=dataset_dict_2)      
     
     df.to_csv(args.out_prefix + '.performance.csv', index=False)
     

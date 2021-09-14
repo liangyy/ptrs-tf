@@ -44,7 +44,10 @@ def predict_only(alpha_list, model_list, dataset_dict, dataset_eid_dict, feature
     res = pd.concat(res, axis=0)
     return res   
 
-def get_partial_r2(alpha_list, model_list, dataset_dict, features, binary=False, split_yaml=None, simple=False):
+def get_partial_r2(alpha_list, model_list, dataset_dict, features, binary=False, split_yaml=None, simple=False, dataset_dict_2=None):
+    if dataset_dict_2 is not None
+        if split_yaml is None or simple is True or binary is True:
+            raise ValueError('Cannot handle this situation')
     if split_yaml is None:
         syaml = None
     else:
@@ -71,6 +74,14 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, features, binary=False,
             else:
                 out = {}
                 covar, out['y'], out['y_pred_from_x'] = dataset
+            if dataset_dict_2 is not None:
+                if i not in dataset_dict_2:
+                    raise ValueError('Expect matched sample name')
+                else:
+                    dataset2 = dataset_dict_2[i]
+                    out2 = {}
+                    _, _, out2['y_pred_from_x'] = dataset2
+            
             if syaml is None:
                 if binary is False:
                     partial_r2[alpha][i] = util_Stats.quick_partial_r2(covar, out['y'], out['y_pred_from_x'])
@@ -89,18 +100,33 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, features, binary=False,
                     yy2 = out['y'][~selected_ind]
                     yyp1 = out['y_pred_from_x'][selected_ind, :]
                     yyp2 = out['y_pred_from_x'][~selected_ind, :]
+                    if dataset_dict_2 is not None:
+                        yyp21 = out2['y_pred_from_x'][selected_ind, :]
+                        yyp22 = out2['y_pred_from_x'][~selected_ind, :]
                     if not isinstance(covar, np.ndarray):
                         cc = covar.numpy()
                     else:
                         cc = covar.copy()
                     cc1 = cc[selected_ind, :]
                     cc2 = cc[~selected_ind, :]
-                    if binary is False:
-                        tmp1 = util_Stats.quick_partial_r2(cc1, yy1, yyp1)
-                        tmp2 = util_Stats.quick_partial_r2(cc2, yy2, yyp2)
+                    if dataset_dict_2 is not None:
+                        if binary is False:
+                            tmp1 = util_Stats.quick_partial_r2(cc1, yy1, yyp1)
+                            tmp2 = util_Stats.quick_partial_r2(cc2, yy2, yyp2)
+                        else:
+                            tmp1 = util_Stats.binary_perf(cc1, yy1, yyp1, func=calc_auc)
+                            tmp2 = util_Stats.binary_perf(cc2, yy2, yyp2, func=calc_auc)
                     else:
-                        tmp1 = util_Stats.binary_perf(cc1, yy1, yyp1, func=calc_auc)
-                        tmp2 = util_Stats.binary_perf(cc2, yy2, yyp2, func=calc_auc)
+                        ntotal_nested = yy1.shape[0]
+                        nselected_nested = ntotal_nested // 2
+                        selected_idx_nested = np.random.choice(ntotal_nested, nselected_nested, replace=False)
+                        selected_ind_nested = np.isin(np.arange(ntotal_nested), selected_idx_nested)
+                        combine_w = util_Stats.get_combine_weight(yy1[selected_ind_nested], yyp1[selected_ind_nested, :], yyp21[selected_ind_nested, :])
+                        yypc1 = util_Stats.get_combined_value(yyp1[~selected_ind_nested, :], yyp21[~selected_ind_nested, :], combine_w)
+                        yypc2 = util_Stats.get_combined_value(yyp2, yyp22, combine_w)
+                        tmp1 = util_Stats.quick_partial_r2(cc1[~selected_ind_nested, :], yy1[~selected_ind_nested], yypc1)
+                        tmp2 = util_Stats.quick_partial_r2(cc2, yy2, yypc2)
+                        
                     out2.append(tmp1)
                     out2.append(tmp2)
                     labels.append(f'repeat{ii}_1')

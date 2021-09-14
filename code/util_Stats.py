@@ -159,4 +159,33 @@ def calc_auc(yp, yo, placeholder):
     if yo.sum() == 0:
         return np.nan
     return roc_auc_score(yo, yp)        
+
+def get_combine_weight(y, yp1, yp2):
+    # y: n x p
+    # yp1: n x p x k1
+    # yp2: n x p x k2
+    yc = y - y.mean(axis=0)[np.newaxis, :]
+    yp1c = yp1 - yp1.mean(axis=0)[np.newaxis, :, :]
+    yp2c = yp2 - yp2.mean(axis=0)[np.newaxis, :, :]
+    x1y = np.einsum('ij,ijp->jp', yc, yp1c) 
+    x2y = np.einsum('ij,ijk->jk', yc, yp2c)
+    x1x2 = np.einsum('ijp,ijk->jpk', yp1c, yp2c) 
+    # x1x1 = np.einsum('ijp,ijp->jp', yp1c, yp1c) 
+    x1x1 = (yp1c ** 2).mean(axis=0) # dim=jp
+    x2x2 = (yp2c ** 2).mean(axis=0) # dim=jk
+    denom = np.einsum('jp,jk->jpk', x1x1, x2x2) - x1x2 ** 2
+    w1_nom = np.einsum('jk,jp->jpk', x2x2, x1y) - np.einsum('jpk,jk->jpk', x1x2, x2y)
+    w2_nom = - np.einsum('jpk,jp->jpk', x1x2, x1y) + np.einsum('jp,jk->jpk', x1x1, x2y)
+    w1 = w1_nom / denom
+    w2 = w2_nom / denom
+    return w1, w2
+
+def get_combined_value(yp1, yp2, weights):
+    # weights: p x k1 x k2, p x k1 x k2
+    # yp1: n x p x k1
+    # yp2: n x p x k2
+    w1, w2 = weights
+    o1 = np.einsum('ijp,jpk->ijpk', yp1, w1)
+    o2 = np.einsum('ijk,jpk->ijpk', yp2, w2)
+    return o1 + o2
     
