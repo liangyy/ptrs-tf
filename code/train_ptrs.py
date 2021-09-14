@@ -15,6 +15,27 @@ def _pr2_format(ele, features, name, alpha, lambda_):
     f_seq = np.repeat(features, nlambda)
     return pd.DataFrame({'partial_r2': ele_seq, 'trait': f_seq, 'sample': name, 'alpha': alpha, 'lambda': lambda_seq})
 
+def predict_only(alpha_list, model_list, dataset_dict, simple=False):
+    res = {}
+    for alpha in alpha_list:
+        res[alpha] = {}
+        model_i = model_list[alpha]
+        for i in dataset_dict.keys():
+            dataset = dataset_dict[i]
+            if simple is False:
+                for ele in dataset:
+                    x, y = model_i.data_scheme.get_data_matrix(ele)
+                    covar = x[:, -len(model_i.data_scheme.covariate_indice) :]
+                    print('alpha = {}, trait = {}, ncol(covar) = {}'.format(alpha, i, covar.shape[1]))
+                out = model_i.predict_x(dataset, model_i.beta_hat_path)
+            else:
+                out = {}
+                covar, out['y'], out['y_pred_from_x'] = dataset
+            res[alpha][i] = pd.DataFrame(
+                out['y_pred_from_x'], 
+                columns=[ f'hyper_param_{i}' for i in range(out['y_pred_from_x'].shape[1]) ])
+            res[alpha][i][['eid']] =             
+
 def get_partial_r2(alpha_list, model_list, dataset_dict, features, binary=False, split_yaml=None, simple=False):
     if split_yaml is None:
         syaml = None
@@ -119,6 +140,9 @@ if __name__ == '__main__':
         Two batches (the first two) of data will be held out for training.
         Specify the size of the batch here.
     ''')
+    parser.add_argument('--all_training', action='store_true', help='''
+        If set, all data will be used for training. --size_of_data_to_hold won't be effective.
+    ''')
     parser.add_argument('--data_hdf5', help='''
         Data in HDF5. 
         Use the format: NAME:PATH
@@ -202,14 +226,16 @@ if __name__ == '__main__':
     if args.prediction_model is None:
         data_scheme, ntrain, train_batch = prep_dataset_from_hdf5(
             data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
-            against_hdf5=against_hdf5, inv_y=inv_y
+            against_hdf5=against_hdf5, inv_y=inv_y,
+            all_training=args.all_training
         )
     else:
         if args.export is False:
             d_valid, d_test, d_insample, feature_tuple, more_info = prep_dataset_from_hdf5(
                 data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
                 against_hdf5=against_hdf5, inv_y=inv_y, return_against=True,
-                stage='test'
+                stage='test',
+                all_training=args.all_training
             )
             features, trait_indice = feature_tuple
             if args.against_hdf5 is not None:
@@ -261,7 +287,8 @@ if __name__ == '__main__':
             gene_list, trait_list, covar_list = prep_dataset_from_hdf5(
                 data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
                 against_hdf5=against_hdf5, inv_y=inv_y,
-                stage='export'
+                stage='export',
+                all_training=args.all_training
             )
             
     

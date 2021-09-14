@@ -7,7 +7,7 @@ import h5py, yaml, functools
 
 
 def prep_dataset_from_hdf5(input_hdf5, data_scheme_yaml, 
-batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_against=False):
+batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_against=False, all_training=False):
     
     x_indice = None
     if against_hdf5 is not None:
@@ -46,24 +46,28 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
     )
     
     if stage == 'train':
-        # set validation and test set as the first and second batch
-        # dataset_valid = data_scheme.dataset.take(1)
-        data_scheme.dataset = data_scheme.dataset.skip(1)
-        # dataset_test = data_scheme.dataset.take(1)
-        data_scheme.dataset = data_scheme.dataset.skip(1)
+        if all_training is False:
+            # set validation and test set as the first and second batch
+            # dataset_valid = data_scheme.dataset.take(1)
+            data_scheme.dataset = data_scheme.dataset.skip(1)
+            # dataset_test = data_scheme.dataset.take(1)
+            data_scheme.dataset = data_scheme.dataset.skip(1)
+            # dataset_insample = data_scheme.dataset.take(1)
+            ntrain = sample_size - batch_size_to_load * 2
+        else:
+            ntrain = sample_size
+            
         batch_size = sample_size // 8 + 1
         data_scheme.dataset = data_scheme.dataset.unbatch().batch(batch_size)
-        
-        # dataset_insample = data_scheme.dataset.take(1)
-        ntrain = sample_size - batch_size_to_load * 2
         train_batch = batch_size
         logging.info(f'train_batch = {train_batch}, ntrain = {ntrain}')
+            
         
         return data_scheme, ntrain, train_batch
         
     
     elif stage == 'test':
-        _, dataset_valid, dataset_test, dataset_insample = split_dataset_into_test_and_valid(data_scheme)
+        _, dataset_valid, dataset_test, dataset_insample = split_dataset_into_test_and_valid(data_scheme, all_training)
         
         if return_against is False or against_hdf5 is None:
             return dataset_valid, dataset_test, dataset_insample, (features, trait_indice), x_indice
@@ -75,7 +79,7 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
                 inv_norm_y=inv_y,
                 x_indice=x_indice_against
             )
-            _, dataset_valid_aga, dataset_test_aga, dataset_insample_aga = split_dataset_into_test_and_valid(data_scheme_against)
+            _, dataset_valid_aga, dataset_test_aga, dataset_insample_aga = split_dataset_into_test_and_valid(data_scheme_against, all_training)
             return dataset_valid, dataset_test, dataset_insample, (features, trait_indice), (dataset_valid_aga, dataset_test_aga, dataset_insample_aga, x_indice_target, x_indice_against)
     
     elif stage == 'export':
@@ -84,12 +88,17 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
         covar_list = features[data_scheme.covariate_indice]
         return gene_list, trait_list, covar_list
         
-def split_dataset_into_test_and_valid(data_scheme):
-    dataset_valid = data_scheme.dataset.take(1)
-    data_scheme.dataset = data_scheme.dataset.skip(1)
-    dataset_test = data_scheme.dataset.take(1)
-    data_scheme.dataset = data_scheme.dataset.skip(1)
-    dataset_insample = data_scheme.dataset.take(1)
+def split_dataset_into_test_and_valid(data_scheme, all_training=False):
+    if all_training is False:
+        dataset_valid = data_scheme.dataset.take(1)
+        data_scheme.dataset = data_scheme.dataset.skip(1)
+        dataset_test = data_scheme.dataset.take(1)
+        data_scheme.dataset = data_scheme.dataset.skip(1)
+        dataset_insample = data_scheme.dataset.take(1)
+    else:
+        dataset_valid = None
+        dataset_test = None
+        dataset_insample = data_scheme.dataset.take(1)        
     return data_scheme, dataset_valid, dataset_test, dataset_insample
 
 
