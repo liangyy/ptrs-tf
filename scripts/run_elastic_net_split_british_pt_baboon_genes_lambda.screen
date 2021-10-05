@@ -38,5 +38,5 @@ python train_ptrs.py \
   --all_training \
   --lambda_dict $lambda_params \
   --pt_cutoffs 1e-6,5e-6,1e-5,5e-5,1e-4,5e-4,1e-3,5e-3,0.01,0.05,0.1,0.5,1 \
-  --gene_list "${tmp_gene_list}"
+  --gene_list "${tmp_gene_list}" \
   > $thisdir/run_elastic_net_split_british_baboon_genes_pt.log 2>&1

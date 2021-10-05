@@ -25,8 +25,8 @@ gene_pool=None):
     if gene_pool is not None:
         with h5py.File(input_hdf5, 'r') as f:
             genes_target = f['columns_x'][...].astype(str)
-        kk1 = [ i.split('.')[0] for genes_target ]
-        kk2 = [ i.split('.')[0] for gene_pool ]
+        kk1 = np.array([ i.split('.')[0] for i in genes_target ])
+        kk2 = np.array([ i.split('.')[0] for i in gene_pool ])
         x_indice_target, _ = util_misc.intersect_indice(kk1, kk2) 
         x_indice = x_indice_target
                        

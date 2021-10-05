@@ -37,5 +37,5 @@ python train_ptrs.py \
   --alpha_seq 0.1 \
   --all_training \
   --lambda_dict $lambda_params \
-  --gene_list "${tmp_gene_list}"
+  --gene_list "${tmp_gene_list}" \
   > $thisdir/run_elastic_net_split_british_baboon_genes.log 2>&1
