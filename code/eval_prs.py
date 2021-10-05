@@ -109,7 +109,7 @@ if __name__ == '__main__':
     )
     from train_ptrs import parse_data_args, get_partial_r2
     # main body
-    
+   
     inv_y = not args.no_inv_y
     
     logging.info('Loading PRS table.')
@@ -131,6 +131,7 @@ if __name__ == '__main__':
     alpha_list = [ 'NA' ]
     model_list = { 'NA': None }
     dataset_dict = {}
+    dataset_dict_2 = {}
     pheno_list = None
     for data_pred in args.data_hdf5_predict:
         data_pred_name, pred_expr, indiv_list = parse_data_args(data_pred)
@@ -149,7 +150,6 @@ if __name__ == '__main__':
         if args.ptrs_table is not None:
             npoints_ptrs = ntotal_ptrs // npheno
             ptrs_collector = np.empty((reference_mat.shape[0], npheno, npoints_ptrs))
-            hypers_ptrs = []
             model_list = { 'NA': None }
         for i in range(len(pheno_list)):
             trait = pheno_list[i]
@@ -164,7 +164,6 @@ if __name__ == '__main__':
             out_mat = out_mat.to_numpy()
             prs_collector[:, i, :] = out_mat   
             prs_names = [ re.sub(colname_j, '', i) for i in cols ]
-            hypers.append(prs_names) 
             if args.ptrs_table is not None:
                 cols_ptrs = []
                 colname_ptrs_j = '^' + args.ptrs_col_pattern.format(trait=trait)
@@ -177,18 +176,17 @@ if __name__ == '__main__':
                 out_mat = out_mat.to_numpy()
                 ptrs_collector[:, i, :] = out_mat 
                 ptrs_names = [ re.sub(colname_ptrs_j, '', i) for i in cols_ptrs ]
-                hypers_ptrs.append(ptrs_names)   
-        if model_list['NA'] is None:
-            if args.ptrs_table is None:
-                model_list['NA'] = hypers
+                combine_names = []
+                for h1 in prs_names:
+                    for h2 in ptrs_names:
+                        combine_names.append(f'{h1}_x_{h2}')
+                hypers.append(combine_names)   
             else:
-                hyper_pairs = []
-                for h1 in hypers:
-                    for h2 in hypers_ptrs:
-                        hyper_pairs.append(f'{h1}_x_{h2}')
-                model_list['NA'] = hyper_pairs
+                hypers.append(prs_names)
+        if model_list['NA'] is None:
+            model_list['NA'] = hypers
         else:
-            check_eq2(model_list['NA'], hyper_pairs)
+            check_eq2(model_list['NA'], hypers)
         dataset_dict[data_pred_name] = (covar, y, prs_collector)
         if args.ptrs_table is None:
             dataset_dict_2 = None
