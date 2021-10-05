@@ -171,6 +171,13 @@ def get_partial_r2(alpha_list, model_list, dataset_dict, features, binary=False,
         df.rename(columns={'partial_r2': 'roc_auc'}, inplace=True)
     return df
 
+def load_list(fn):
+    o = []
+    with open(fn, 'r') as f:
+        for i in f:
+            o.append(i.strip())
+    return o
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(prog='train_ptrs.py', description='''
@@ -244,6 +251,10 @@ if __name__ == '__main__':
         The YAML should contain:
         nrepeat (default=10), fraction (default=0.5), seed (default=1)
     ''')
+    parser.add_argument('--gene_list', default=None, help='''
+        If set, it will limit to the genes being specified.
+        This option cannot be used with --against_hdf5 or --against_hdf5_predict
+    ''')
     args = parser.parse_args()
  
     import logging, time, sys, os
@@ -271,12 +282,17 @@ if __name__ == '__main__':
         against_name, against_hdf5 = parse_data_args(args.against_hdf5)
     else:
         against_hdf5 = None
+    if args.gene_list is not None:
+        gene_pool = load_list(args.gene_list)
+    else:
+        gene_pool = None
 
     if args.prediction_model is None:
         data_scheme, ntrain, train_batch = prep_dataset_from_hdf5(
             data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
             against_hdf5=against_hdf5, inv_y=inv_y,
-            all_training=args.all_training
+            all_training=args.all_training,
+            gene_pool=gene_pool
         )
     else:
         if args.export is False:
@@ -284,7 +300,8 @@ if __name__ == '__main__':
                 data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
                 against_hdf5=against_hdf5, inv_y=inv_y, return_against=True,
                 stage='test',
-                all_training=args.all_training
+                all_training=args.all_training,
+                gene_pool=gene_pool
             )
             features, trait_indice = feature_tuple
             if args.against_hdf5 is not None:
@@ -349,7 +366,8 @@ if __name__ == '__main__':
                 data_hdf5, args.data_scheme_yaml, args.size_of_data_to_hold, logging, 
                 against_hdf5=against_hdf5, inv_y=inv_y,
                 stage='export',
-                all_training=args.all_training
+                all_training=args.all_training,
+                gene_pool=gene_pool
             )
             
     

@@ -7,9 +7,12 @@ import h5py, yaml, functools
 
 
 def prep_dataset_from_hdf5(input_hdf5, data_scheme_yaml, 
-batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_against=False, all_training=False):
+batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_against=False, all_training=False,
+gene_pool=None):
     
     x_indice = None
+    if against_hdf5 is not None and gene_pool is not None:
+        raise ValueError('Cannot handle this case')
     if against_hdf5 is not None:
         # extract the gene names 
         with h5py.File(input_hdf5, 'r') as f:
@@ -18,6 +21,13 @@ batch_size, logging, against_hdf5=None, inv_y=True, stage='train', return_agains
             genes_against = f['columns_x'][...].astype(str)
         # get the genes occur in both models
         x_indice_target, x_indice_against = util_misc.intersect_indice(genes_target, genes_against) 
+        x_indice = x_indice_target
+    if gene_pool is not None:
+        with h5py.File(input_hdf5, 'r') as f:
+            genes_target = f['columns_x'][...].astype(str)
+        kk1 = [ i.split('.')[0] for genes_target ]
+        kk2 = [ i.split('.')[0] for gene_pool ]
+        x_indice_target, _ = util_misc.intersect_indice(kk1, kk2) 
         x_indice = x_indice_target
                        
     
