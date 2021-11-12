@@ -93,7 +93,7 @@ gene_pool=None):
             return dataset_valid, dataset_test, dataset_insample, (features, trait_indice), (dataset_valid_aga, dataset_test_aga, dataset_insample_aga, x_indice_target, x_indice_against)
     
     elif stage == 'export':
-        gene_list = genes[data_scheme.get_indice_x()]
+        gene_list = genes[data_scheme.x_indice]
         trait_list = features[data_scheme.outcome_indice]
         covar_list = features[data_scheme.covariate_indice]
         return gene_list, trait_list, covar_list
